@@ -29,13 +29,15 @@ Both backends must pass the required contracts. A passing backend does not compe
 
 ## 2. Coordinator operating instructions
 
-- Begin with desk research. Confirm installed versions and supported interfaces rather than copying old command examples.
-- Assign bounded tasks with the hypothesis, allowed scope, expected evidence, and stopping condition below. Agree a short investigation budget before each live phase; do not let a failed mechanism turn into open-ended workaround development.
-- Backend-specific research and fixture-only history work can proceed independently. Do not run multiple workers against the same disposable target. One owner controls each test target and its cleanup.
-- Workers report observations and limitations; the coordinator maintains one concise findings document at `docs/investigation-findings.md`. Avoid overlapping writes to it.
-- Use the smallest disposable harness needed to answer each question. No plugin framework, persistent receipt store, second transcript archive, production web service, or general evidence infrastructure.
-- Inspect relevant installed Pi/multiplexer documentation and source before choosing mechanisms. Distinguish documented guarantees, observed behavior, and unresolved assumptions.
+Follow [COORDINATION.md](COORDINATION.md) for agent launch/placement, bounded assignments, investigation responsibilities, independent review, and handoff conventions. For this investigation:
+
+- Begin with desk research. Confirm installed versions and supported Pi/multiplexer interfaces rather than copying old command examples.
+- Agree a short investigation budget before each live phase; do not let a failed mechanism turn into open-ended workaround development.
+- Backend-specific research and fixture-only history work can proceed independently, with separate live-test targets and non-overlapping writes.
+- The coordinator maintains one concise findings document at `docs/investigation-findings.md`; workers report results for synthesis.
+- Use the smallest disposable harness needed. No plugin framework, persistent receipt store, second transcript archive, or production web service.
 - On a required-gate failure, stop dependent work and bring the smallest necessary decision to the user. Independent read-only work may finish; do not silently change scope or try a required extension, launcher, alternate UX, or process-killing substitute.
+- Obtain a fresh correctness review of the assembled findings before presenting the final feasibility recommendation; reviewers have no additional live-test authority.
 
 ## 3. Work packages and gates
 
