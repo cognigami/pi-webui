@@ -1,8 +1,8 @@
 # RAI Integration Investigation Plan
 
-**Status:** Ready for coordinator handoff; investigation only. Live tests are not authorized by this plan.
-**Baseline:** [Design](design.md), especially §§5, 7, and 10; [product scope and existing evidence](design-notes.md).
-**Goal:** Determine whether existing interactive Pi sessions in both herdr and tmux can satisfy the required identity, conversation, Send, and Stop contracts. Produce an evidence-backed go/no-go decision, not a production implementation.
+**Status:** Historical investigation plan. Read-only investigation is complete; the remaining live phases below were not run. Its execution sequence and feasibility prerequisites are superseded by [design §§10–11](design.md#10-implementation-validation).
+**Current handoff:** Follow [COORDINATION.md](COORDINATION.md) and the design's bridge-first delivery sequence. Do not restart I1 or treat this document's stack-selection prohibition or original gates as current prerequisites. See [investigation findings](investigation-findings.md) for results and accepted limitations. Live tests and extension installation/reload still require separate authorization.
+**Original goal:** Determine whether existing interactive Pi sessions in both herdr and tmux can satisfy the required identity, conversation, Send, and Stop contracts. Produce an evidence-backed go/no-go decision, not a production implementation.
 
 **Operator-approved follow-up after I1:** Investigate a Pi-side extension for direct state/output/control, with herdr/tmux retaining process durability. The earlier restriction against introducing an extension is lifted for this investigation, not permission to install one into running sessions or conduct live tests. The operator subsequently accepted one timing limitation when evaluating Pi's existing controls: a Send still delayed in input processing may arrive after Stop; a Pi API change is not a prerequisite to a prototype. This qualifies the absolute pending-Send Stop gate below. Other gate requirements and live-test authorization boundaries still apply. Record follow-up evidence in [the current findings](investigation-findings.md); interpret multiplexer input/control experiments below as the original track, not a requirement to inject terminal keys.
 

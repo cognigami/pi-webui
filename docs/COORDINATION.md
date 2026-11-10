@@ -2,7 +2,7 @@
 
 Reusable guidance for planning, delegating, investigating, and reviewing work in this repository. Project instructions, the selected design, and the operator's actual authorization remain authoritative. A plan or review approval is not permission to execute everything it describes.
 
-The current assignment is the [integration investigation](investigation-plan.md), against the [design](design.md) and [product scope](design-notes.md). Production implementation remains gated on its results.
+The integration direction is selected: follow [design §11](design.md#11-delivery-sequence) for bridge-first implementation, within the operator's actual authorization. The [investigation findings](investigation-findings.md) provide background evidence; the [investigation plan](investigation-plan.md) is historical, not the current execution sequence. The [product scope](design-notes.md) remains authoritative.
 
 ## 1. Scale coordination to the work
 
@@ -46,7 +46,7 @@ Investigators should:
 
 The coordinator combines results across backends and checks dependencies. It must not quietly replace the question, hide a failed gate, or convert a permitted limitation into an unsupported success claim.
 
-For this investigation, live tests require explicit authorization for disposable Pi sessions, multiplexers, payloads, fault injection, and cleanup. Never inject into the coordinator, existing workers, or production conversations. Reading documentation and fixture-only work do not authorize live control. Launching a worker is not permission for it to create or manipulate test sessions.
+Live validation requires explicit authorization for disposable Pi sessions, multiplexers, payloads, fault injection, and cleanup. Never inject into the coordinator, existing workers, or production conversations. Reading documentation and fixture-only work do not authorize live control. Launching a worker is not permission for it to create or manipulate test sessions.
 
 ## 4. Review purposes and triggers
 
@@ -79,4 +79,4 @@ Ask the operator before contacting agents in another project unless that communi
 
 A plan should contain scope/exclusions, unresolved choices, ordered verifiable slices, dependencies, ownership/write boundaries, appropriate validation/review, and a coordinator start brief stating what is actually authorized. Stop dependent work when a prerequisite fails; return a specific decision rather than silently weakening the contract.
 
-For the current investigation, the coordinator starts with `investigation-plan.md` I1 and fixture-only research. Live experiments await the authorization described there. Maintain `docs/investigation-findings.md` as the concise synthesis, request a fresh correctness review before the final recommendation, and report pass/fail/unverified by backend and tested platform. A failed feasibility gate can be a successful investigation outcome; production work does not follow automatically.
+For the current handoff, use design §§10–11: select the independent web-service stack and concrete bridge boundary, then implement the Pi extension bridge using the existing API before the full UI. Validate it with separately authorized disposable sessions, then add history reconciliation and the browser interface. Do not restart I1 or require another broad feasibility phase. Keep focused validation results and decisions in repository Markdown, review meaningful slices before downstream reliance, and report untested backends/platforms explicitly. Planning does not itself authorize implementation, live tests, or installation/reload into existing agents.
