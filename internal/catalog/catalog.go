@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -172,14 +173,47 @@ func TMUX(ctx context.Context, run Run) ([]Pane, error) {
 		if label == "" {
 			label = "Unnamed session"
 		}
-		panes = append(panes, Pane{"tmux", values[0], id, label, values[3] + " · " + id, values[4], values[5] == "pi"})
+		pane := Pane{"tmux", values[0], id, label, values[3] + " · " + id, values[4], values[5] == "pi"}
+		// tmux can report Node's executable name even when Pi's process command
+		// is pi. Inspect only this pane's foreground processes, never its text.
+		if values[5] == "node" || values[5] == "nodejs" {
+			identified, err := nodePi(ctx, run, id)
+			pane.Identified = identified
+			panes = append(panes, pane)
+			if err != nil {
+				return panes, err
+			}
+		} else {
+			panes = append(panes, pane)
+		}
 	}
 	return panes, nil
+}
+func nodePi(ctx context.Context, run Run, paneID string) (bool, error) {
+	tty, err := run(ctx, "tmux", "display-message", "-p", "-t", paneID, "#{pane_tty}")
+	if err != nil {
+		return false, err
+	}
+	terminal := strings.TrimSuffix(string(tty), "\n")
+	if !strings.HasPrefix(terminal, "/dev/") || strings.ContainsAny(terminal, "\r\n") {
+		return false, errors.New("tmux pane has unavailable terminal metadata")
+	}
+	data, err := run(ctx, "ps", "-t", terminal, "-o", "pid=,stat=,comm=")
+	if err != nil {
+		return false, err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 3 && strings.Contains(fields[1], "+") && filepath.Base(fields[2]) == "pi" {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 func Discover(ctx context.Context, observations []bridge.Observation, run Run) Listing {
 	result := Listing{Rows: []Row{}, Failures: map[string]string{}, Coverage: []string{
 		"Herdr: inherited/default server only. tmux: default/inherited server only.",
-		"Unintegrated tmux discovery identifies foreground command pi only; node-hosted or nested sessions may be unidentifiable.",
+		"Unintegrated tmux candidates require command pi, or Node with an exact pi foreground process on that pane's tty; other launchers/nesting may be unidentifiable.",
 		"Inherited nested pane context is not proof of innermost ownership; ambiguous labels require live validation.",
 	}}
 	scope := os.Getenv("HERDR_SOCKET_PATH")

@@ -1,6 +1,6 @@
 # RAI Integration Investigation Findings
 
-**Status:** Historical read-only investigation, with the execution-time Pi 1.5.2 correction below. No live Pi tests or extension installs authorized or performed.
+**Status:** Historical read-only investigation, with the execution-time Pi 1.5.2 correction below. Subsequent first-phase disposable live results are in the [execution plan](execution-plan.md#current-execution-result-and-live-gate); historical untested statements below describe the investigation, not the later smoke phase. No installation into regular sessions was authorized.
 **Scope:** [Product brief](design-notes.md), [design](design.md), and [investigation plan](investigation-plan.md), including the operator's clarification below. No production stack selected.
 
 ## Execution-time correction: Pi 1.5.2 and accepted races

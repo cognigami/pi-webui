@@ -1,6 +1,6 @@
 # Remote Agent Interface: Initial Design
 
-**Status:** Go service/TypeScript extension selected; bridge implementation in progress. Live validation pending.
+**Status:** Go service/TypeScript bridge implemented; first disposable macOS Herdr/tmux smoke phase passed. Broader live acceptance and UI remain gated.
 **Scope authority:** [Product brief and design notes](design-notes.md).
 **Integration evidence:** [Investigation findings](investigation-findings.md). Use Pi's existing extension API. Live tests and extension installation require separate authorization.
 **Target:** One user, one Linux/macOS host, tablet browser, existing interactive Pi sessions in herdr and tmux.
@@ -240,7 +240,7 @@ The extension provides:
 
 Start connection work from `session_start`, not the extension factory. Clean up idempotently on `session_shutdown`. If RAI is absent, Pi must still start and work normally; reconnect observation when the service returns. Extension reload/replacement requires fresh endpoint association.
 
-Herdr/tmux integration is limited to existing labels, pane/ownership context, and discovery of nonparticipating sessions. Use supported installed interfaces; do not infer identity from directory or recency. Do not capture/scrape terminal output, inject keys, take over an output pipe, or alter the user's pane. Nested multiplexers and label mapping need end-to-end validation under both backends.
+Herdr/tmux integration is limited to existing labels, pane/ownership context, and discovery of nonparticipating sessions. Use supported installed interfaces; do not infer identity from directory or recency. Do not capture/scrape terminal output, inject keys, take over an output pipe, or alter the user's pane. Basic label/rename mapping passed the first disposable smoke phase under both backends. Nested ownership still needs end-to-end validation.
 
 ### 7.2 Identity and target changes
 

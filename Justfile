@@ -33,6 +33,11 @@ test *paths: build
     else
       case "$1" in
         extension/*) node --test "$@" ;;
-        *) go test -race "$@" ;;
+        *)
+          for path do
+            case "$path" in ./*) ;; *) path="./$path" ;; esac
+            go test -race "$path"
+          done
+          ;;
       esac
     fi

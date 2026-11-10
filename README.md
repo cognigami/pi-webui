@@ -2,7 +2,8 @@
 
 One Go service and a TypeScript extension inside participating Pi sessions.
 Herdr/tmux retain ownership of Pi. **This is a P2 diagnostic prototype, not the
-tablet application. No live Pi validation or extension installation has occurred.**
+tablet application. First-phase live smoke tests passed in disposable macOS
+Herdr/tmux sessions; full bridge acceptance is still pending.**
 
 ## Build and check
 
@@ -67,9 +68,9 @@ After uncertain results, check Pi before deliberately sending again.
 
 ## Extension load boundary
 
-**Live validation still needs operator authorization for exact disposable
-targets, payloads, fault injection, and cleanup. Do not load/reload into existing
-coordinator, worker, or production sessions.** Once authorized, a *new disposable*
+**The first disposable live phase was explicitly authorized and completed.
+Further live phases need an agreed bounded scope. Do not load/reload into existing
+coordinator, worker, or production sessions.** With authorization, a *new disposable*
 interactive Pi can use its supported `-e /absolute/path/to/extension/index.ts`
 option and `RAI_SOCKET=/absolute/private/bridge.sock` for an isolated test service.
 Nothing here automatically modifies Pi settings or installed extensions.
@@ -83,11 +84,36 @@ independent workers. Ordinary Send never reads/submits/clears the desktop draft.
 Stopping the RAI service with Ctrl-C or SIGTERM closes only RAI-owned sockets;
 Pi remains independently owned by its multiplexer.
 
+## Live smoke coverage
+
+Tested on macOS x86_64 with Pi 1.5.2, Herdr 0.9.3 and tmux 3.7b:
+
+- Both backends: real Send produced a saved user message and `RAI_OK` response.
+  Unicode/multiline/whitespace plus an **embedded** command-looking line reached
+  an ordinary input hook unchanged; the desktop draft remained untouched.
+- A benign waiting tool plus queued steering was interrupted by Stop. Observed
+  tool cancellation, empty pending queue/editor, and no queued user message in
+  the active ancestry corroborated the dispatch result. Pi stayed alive.
+- Navigation during held input was rejected by Pi; after release, navigation,
+  reload, and fork invalidated old associations/endpoints. Duplicate/renamed
+  labels did not redirect controls. Extension dialogs rejected Send.
+- Service absence/restart preserved the four observed Pi PIDs/session IDs/input
+  counts and established fresh endpoints, with no observed replay in that run.
+- Missing-extension discovery worked for Herdr. A demonstrated tmux Node-host
+  discovery omission was fixed using tty-scoped foreground process metadata,
+  then checked against the actual disposable Pi without the RAI extension.
+
+Independent correctness review accepted these as **bounded smoke evidence**, not
+full P2 acceptance. See the [execution results](docs/execution-plan.md#current-execution-result-and-live-gate)
+for limitations, phase scope, and cleanup. No regular-session installation occurred.
+
 ## Current limits and gate
 
 - Operator accepted delayed Send-after-Stop and the settlement-deferred
   Send/navigation race. Pi 1.5.2's normal async-input preflight navigation
-  reservation is source-inspected, **not live-tested here**.
+  reservation was source-inspected and checked with held-input navigation.
+  The settlement-deferred race was not reproduced by the smoke fixture; no
+  atomic-targeting guarantee is claimed.
 - Before-tree invalidation rejects stale/transition controls without vetoing
   desktop navigation. If a later extension cancels navigation, RAI stays
   conservatively unavailable until a later agent lifecycle event or explicit
@@ -100,8 +126,9 @@ Pi remains independently owned by its multiplexer.
   pending input. `pending` is the public aggregate, not a complete TUI queue view.
 - Discovery covers the service's inherited/default Herdr/tmux servers. Nested
   inherited contexts are explicitly ambiguous, not guessed ownership.
-  Unintegrated tmux discovery identifies foreground `pi` only; node-hosted or
-  nested sessions can be unidentifiable. No directory/title-based Pi inference.
+  Unintegrated tmux discovery uses command `pi`, or for Node hosts an exact
+  foreground `pi` process on that pane's tty. Other launchers/nesting may remain
+  unidentifiable. No directory, terminal-title, or terminal-output inference.
 - Observations are bounded (256 KiB current turn, 64 tools, 1 MiB wire frames);
   gaps and unavailable live content are explicit. Reconnect gets fresh endpoint
   identity and a snapshot, never replayed commands. Control IDs are transient,
@@ -112,8 +139,8 @@ Pi remains independently owned by its multiplexer.
   P3 must reconcile that persisted tail. Retained history, coherent browser
   history/provisional reconciliation, full UI, and drafts are not implemented.
 
-**Next gate:** separately authorized disposable Pi tests under both multiplexers
-on macOS, followed by correctness review. Linux and all real-browser/tablet
-behavior remain provisional. P3 fixture preparation is allowed, but P3 integrated
-acceptance and P4/P5 UI work remain gated. See [execution status and authorization
-request](docs/execution-plan.md#current-execution-result-and-live-gate).
+**Next gate:** agree the next bounded P2 live-acceptance phase for leading command
+input, manual compaction, nesting and response loss/backpressure. These were not
+passed by the first smoke phase. History/live reconciliation follows P3 implementation. Linux and all
+browser/tablet behavior remain provisional. P3 fixture preparation is allowed,
+but P3 integrated acceptance and P4/P5 UI work remain gated. See [execution status](docs/execution-plan.md#current-execution-result-and-live-gate).

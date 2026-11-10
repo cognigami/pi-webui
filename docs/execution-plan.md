@@ -1,6 +1,6 @@
 # RAI Execution Plan
 
-**Status:** P1 complete; P2 fixture implementation/review complete, stopped at the separate live-validation authorization gate. No live Pi tests, installation/reload into Pi, retained-conversation reads, or full UI implementation performed. See [current execution result](#current-execution-result-and-live-gate).
+**Status:** P1 complete; P2 fixture checks and first authorized live identity/control smoke phase passed on macOS under Herdr and tmux. Full P2 acceptance and dependent UI remain gated on the next agreed live phase. Only disposable Pi sessions were loaded/reloaded; no regular-session installation or private existing-conversation reads. See [current execution result](#current-execution-result-and-live-gate).
 **Authority:** [Product scope](design-notes.md), [design](design.md), and the operator's actual execution authorization.
 **Coordination:** Follow [COORDINATION.md](COORDINATION.md), including the `eng` preset, background tabs in the coordinator's own Herdr workspace, bounded assignments, and independent review.
 **Evidence:** [Investigation findings](investigation-findings.md). The [investigation plan](investigation-plan.md) is historical; do not restart its feasibility sequence.
@@ -166,7 +166,7 @@ Browser checks for session selection/rename/disappearance, missing integration, 
 | Slice | State | Owner / result |
 | --- | --- | --- |
 | P1 | Complete | Coordinator: Go stdlib + TS/Node; concrete paths/wire/config in design §§7–9; executable workflows pass |
-| P2 | Fixture implementation/review complete; NOT live-accepted | Coordinator owns `extension/`, `internal/{bridge,catalog,web}/`; independent read-only review fixes addressed; separate live authorization pending |
+| P2 | First bounded live smoke passed; NOT fully accepted | Coordinator: macOS Herdr/tmux controls/identity smoke and review complete; demonstrated Node-host discovery defect fixed and live-checked; extended live acceptance pending |
 | P3 | Not started | P2 supplies lower-bound cutoff only; fixture preparation allowed, integrated acceptance blocked |
 | P4 | Blocked | Gate: live-validated P2 and accepted P3; no full UI built |
 | P5 | Blocked | Gate: P4 and validated controls; no HTTP control routes |
@@ -177,16 +177,40 @@ Browser checks for session selection/rename/disappearance, missing integration, 
 ### Delivered and checked
 
 - Concrete Go standard-library service, TypeScript extension, user-private Unix socket, bounded snapshots and provisional output, fresh endpoint/conversation associations, local diagnostic Send/Stop client, and read-only loopback HTTP diagnostics. No terminal transport, second transcript archive, Pi changes, or automatic control replay.
-- Existing Herdr agent/tab labels and tmux pane/window context via literal CLI arguments; duplicates/unnamed labels, partial discovery failure, missing integration, inherited/default server coverage, and ambiguous nested context are explicit. Actual ownership/nesting/label behavior has not passed live validation.
+- Existing Herdr agent/tab labels and tmux pane/window context via literal CLI arguments; missing integration and partial coverage are explicit. First-phase live checks covered ordinary labels, duplicates, renames, and nonintegrated Pi discovery on the test host; nesting/authoritative overlapping ownership remain unpassed.
 - Independent reviewer: Pi session `01a1c632-f370-71b6-9c2d-7c960392f836`, launched with `--presets:preset eng` into coordinator-owned background tab `w12:t9` / pane `w12:p9`. Read-only review included current installed Pi source and implementation, not live controls or modifying lint. Local fixes: before-tree invalidation (not merely late post-hook observation), test-to-build dependency to avoid stale/missing fixture binaries, and closing failed/partial command writes while still holding the write lock. Focused re-review cleared the fixture boundary after these corrections; it did **not** accept P2 live or P3 history correctness. A small persisted-ID bound was also added with explicit gap/resynchronization feedback.
-- Final ordinary workflows: `build`, `lint`, `test` succeeded on macOS with Go 1.25.5 and Node 24.21.0. Tests include race-enabled Go package tests and Node tests using synthetic data/fake Pi contexts; the real Go/TS roundtrip fixture covers literal dispatch, Stop, service restart, fresh association and no replay. The test workflow builds its own current executable. No Linux, real Pi hooks/steering/queue discard, browser/tablet, or actual multiplexer-target behavior is thereby proven.
+- Ordinary `build`, `lint`, `test` workflows pass on macOS with Go 1.25.5 and Node 24.21.0, including race-enabled Go package tests and Node fake-context/real-service roundtrip fixtures. These are separate from the first live phase below, not proof of Pi concurrency or tablet behavior. Focused Go test forwarding was corrected after the tool normalized away a leading `./`; `test(paths: ["internal/catalog"])` now works.
 - `cutoff` is explicitly a conservative P2 lower bound. Pi can append later `turn_end` / `agent_before_settle` proposals beyond it; P3 must reconcile the authoritative persisted tail and provisional holdback before claiming a coherent conversation. The fake host is not a reproduction of Pi's later-handler persistence.
 - Remaining prototype limitations: observed successful manual compaction requires a later authoritative agent event or explicit reload before remote Send resumes; a later-handler navigation cancellation can similarly leave transition controls unavailable until resynchronization; built-in terminal dialogs are not fully observable. These are visible conservative limitations pending live tests, not silently restored by timers or a duplicate queue.
 - Run/config/check instructions: [README](../README.md). Dependencies/build artifacts and test temporary paths are repo-local/ignored; no installed Pi or existing conversations were modified. Reviewer tab cleanup is recorded below. The earlier npm version probe hit a sandbox read denial; work paused and resumed only after the operator's explicit continuation guidance. Subsequent dependency/build workflows used the supported tools and succeeded.
 
-### Separate authorization requested — not executed
+### First live phase — completed within the approved bounds
 
-Approve or amend this exact proposed envelope before live testing:
+The operator approved the disposable live-test phase, then explicitly disabled the sandbox after its Unix-socket connect denial. The denied first Send had no dispatch side effect; the same request was retried after that guidance. The first phase stayed within 20 minutes per backend (Herdr targets started 2026-11-10 23:57 UTC; tmux targets 2026-11-11 00:03 UTC). Testing used macOS x86_64, installed Pi 1.5.2, Herdr client/server 0.9.3 and tmux 3.7b, with the configured model `openai-codex/gpt-6.1-sol`. All model tools except the benign fixture wait tool were disabled. The scope below records the approved envelope, not completion of every check it permitted. Broader phases still require agreement.
+
+| Check | Herdr | tmux |
+| --- | --- | --- |
+| Extension connection, session/file identity, real Send and saved `RAI_OK` response | Passed | Passed |
+| Unicode/multiline/whitespace and embedded command-looking line through ordinary input hook; desktop draft untouched | Passed for the synthetic sample | Passed for the synthetic sample |
+| Busy fixture tool, ordinary steering queue, Stop interrupts and discards queued steering without Pi exit | Passed | Passed |
+| Held async input rejects navigation; after release, navigation invalidates old association | Passed | Passed |
+| Reload and fork invalidate endpoint; stale controls rejected | Passed | Passed |
+| Duplicate/renamed labels preserve target identity | Passed | Passed |
+| Extension confirm dialog produces waiting/unsupported Send feedback | Passed | Passed |
+| Missing RAI extension is reported rather than becoming a guessed control target | Passed | Passed after the Node-host discovery fix |
+| RAI absence/restart preserves Pi and refreshes endpoint identity without observed replay | Passed for one joint four-target restart | Same joint run |
+
+**Behavioral evidence:** Send/Stop result strings alone were not treated as acceptance/completed interruption. Public fixture observations and synthetic saved ancestry showed the real `RAI_OK` reply, unchanged desktop drafts, a waiting tool with `pending=true`, then an interrupted tool with `pending=false`, empty editor, and no queued-steering user entry in active ancestry. The busy payload was exactly `Reply with exactly RAI_STEERED; do not use tools`; it was not one of the fixture-handled input prefixes. A contemporaneous four-target assertion confirmed unchanged PIDs/session IDs/input counts across RAI restart. Later process replacements overwrote the disposable b-target snapshots; this is recorded as an observed check, not a reconstruction from their final state.
+
+**Demonstrated defect and minimum correction:** tmux reported a real nonintegrated Pi as `pane_current_command=node`, so the old exact-`pi` predicate omitted it. The service now checks only Node candidates using that pane's `pane_tty` and bounded `ps -t TTY -o pid=,stat=,comm=` metadata: an exact `pi` foreground (`+`) process identifies a candidate. No terminal/title scraping, all-host process walk, or control-recipient inference. Background/non-Pi cases and process-inspection failure have focused tests. Rebuilding/restarting RAI made the actual nonintegrated tmux target appear as `integration=unavailable`; Linux remains provisional.
+
+**What did not pass:** the literal sample begins `RAI_LITERAL` and contains an embedded `/rai-not-command` line; it does not establish leading slash-command behavior. A held-settlement attempt did not reproduce the accepted race: terminal setup commands waited until the fixture's 30-second auto-release, so the deferred literal ran on the original leaf before navigation. Neither a race reproduction nor atomic targeting is claimed. Manual compaction, nested ownership, session switching, real-Pi response loss/backpressure, comprehensive exact-input cases, and coherent history/live reconciliation remain unpassed. The two previously accepted races remain accepted; no cancellation machinery was added.
+
+**Independent review:** read-only reviewer `01a1c7ef-ba57-74dd-9eba-6659f0aebd2e` ran with `--presets:preset eng` in coordinator-created background tab `w12:tC` / pane `w12:pC`. It reviewed the sources, synthetic fixture artifacts and evidence limits without controlling targets, modifying files/lint, running tests/model requests, or launching descendants. It found the smoke result sound as a bounded smoke, reviewed the narrow Node-host correction without a blocking finding, and explicitly did not accept full P2. The coordinator separately performed the live discovery-fix check.
+
+Approved envelope:
+
+Approved envelope:
 
 1. **Resources:** one new disposable Herdr instance named `rai-bridge-validation` (never the default server), one new tmux server using the exact repo-local socket `.rai-investigation/live/tmux.sock`, and two new interactive Pi targets in each. Never replace an existing instance/socket/name; collision returns for a decision. No coordinator/worker/production panes are test targets. The validation owner alone manages these resources.
 2. **Paths/service:** `.rai-investigation/live/` only for fixture extensions, per-target working/session directories, configuration and temporary files; a dedicated RAI service on `127.0.0.1:8485` with `.rai-investigation/live/rai.sock`. No `/tmp`, LAN/public listeners, production history reads, or installed Pi/settings changes. Bind failures return for a decision.
@@ -194,9 +218,9 @@ Approve or amend this exact proposed envelope before live testing:
 4. **Faults:** disconnect/reconnect the disposable extension/service socket, stop/restart only this RAI test service, throttle a diagnostic reader, intentionally drop a control response, and replace/reload only the disposable Pi targets. Rename/nest the disposable panes, switch/fork synthetic conversations, and interrupt the fixture workload. Do not alter installed integrations, existing multiplexer instances, or production agent processes.
 5. **Budget/cleanup:** first 20-minute identity/control phase per backend; if it passes, agree the next bounded acceptance phase for exact input, recovery and history integration. Cleanup closes only the exact returned test pane/instance IDs and removes only created files under `.rai-investigation/live/`; never stop the default Herdr server. Report failed/untested cases rather than widening authority.
 
-Until authorized, **P2 remains unvalidated and full UI work is stopped**. The two accepted races need no special cancellation machinery and are not renewed delivery gates. The specific next decision is live-test authorization, not another stack/feasibility review.
+**Current gate:** P2 is smoke-tested but not fully accepted; full UI work remains stopped. Proposed next agreement: up to 30 minutes per backend for the remaining P2 exact-input, manual-compaction, nesting and response-loss/backpressure checks, reusing only the stopped named test instance and recreating the same private repo-local resources. No existing sessions are targets; the original payload/fault/cleanup exclusions remain. P3 fixture work may proceed, but full history/live reconciliation requires P3 implementation and its own integrated acceptance after the bridge gate. The accepted races need no special cancellation machinery and are not renewed delivery gates. No new stack/feasibility review is needed.
 
-**Coordination cleanup:** coordinator-created reviewer tab `w12:t9` closed successfully by its returned ID; no pre-existing panes were closed and no live-test resources were created. Ordinary fixture service children/sockets are shut down by tests; ignored build/dependency artifacts remain for development.
+**Cleanup:** RAI test service stopped; exact tmux test session `$0` on `.rai-investigation/live/tmux.sock` killed; named Herdr instance `rai-bridge-validation` stopped (`running=false`). Coordinator-created management tabs `w12:tA` / `w12:tB` and reviewer `w12:tC` were closed by their returned IDs; earlier reviewer `w12:t9` was already closed. No default server or pre-existing panes were stopped. All 32 inventoried repo-local live fixture/session files and the leftover tmux socket were removed successfully by exact path; ordinary build/dependency artifacts remain ignored. Herdr's stopped named-instance metadata remains managed by Herdr outside the repo-only file-cleanup envelope.
 
 ## 6. Coordinator start brief
 

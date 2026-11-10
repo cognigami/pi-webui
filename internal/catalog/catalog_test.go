@@ -40,6 +40,64 @@ func TestLabelsDuplicatesAndExactTMUXFields(t *testing.T) {
 		t.Fatal(tmux)
 	}
 }
+func TestNodeHostedPiRequiresForegroundProcessEvidence(t *testing.T) {
+	for _, tc := range []struct {
+		process    string
+		identified bool
+	}{
+		{"101 Ss+ pi\n102 S+ log\n", true},
+		{"101 S pi\n", false},
+		{"101 S+ node\n", false},
+		{"101 S+ other-pi\n", false},
+	} {
+		run := func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			if name == "ps" {
+				if strings.Join(args, " ") != "-t /dev/ttyfixture -o pid=,stat=,comm=" {
+					t.Fatalf("not tty-scoped: %v", args)
+				}
+				return []byte(tc.process), nil
+			}
+			if name == "tmux" && len(args) == 5 {
+				if args[4] == "#{pane_current_command}" {
+					return []byte("node\n"), nil
+				}
+				if args[4] == "#{pane_tty}" {
+					return []byte("/dev/ttyfixture\n"), nil
+				}
+			}
+			return fakeRun(ctx, name, args...)
+		}
+		panes, err := TMUX(context.Background(), run)
+		if err != nil || len(panes) != 2 {
+			t.Fatal(panes, err)
+		}
+		for _, p := range panes {
+			if p.Identified != tc.identified {
+				t.Fatalf("%q: %+v", tc.process, p)
+			}
+		}
+	}
+}
+func TestNodeProcessInspectionFailureIsPartialDiscovery(t *testing.T) {
+	run := func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		if name == "ps" {
+			return nil, errors.New("fixture process metadata unavailable")
+		}
+		if name == "tmux" && len(args) == 5 {
+			if args[4] == "#{pane_current_command}" {
+				return []byte("node\n"), nil
+			}
+			if args[4] == "#{pane_tty}" {
+				return []byte("/dev/ttyfixture\n"), nil
+			}
+		}
+		return fakeRun(ctx, name, args...)
+	}
+	listing := Discover(context.Background(), nil, run)
+	if listing.Failures["tmux"] == "" {
+		t.Fatal("process failure presented as complete discovery")
+	}
+}
 func TestParticipationAndNestedContextNeverDuplicateEndpoint(t *testing.T) {
 	t.Setenv("HERDR_SOCKET_PATH", "/herdr.sock")
 	observations := []bridge.Observation{{Snapshot: bridge.Snapshot{Target: bridge.Target{EndpointID: "one"}, Host: bridge.Host{HerdrPane: "w1:p1", HerdrSocket: "/herdr.sock", TMUXPane: "%1", TMUXSocket: "/tmux.sock"}}}}
