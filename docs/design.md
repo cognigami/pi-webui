@@ -1,6 +1,6 @@
 # Remote Agent Interface: Initial Design
 
-**Status:** Initial design; direct Pi-extension integration. Implementation and live validation pending.
+**Status:** Go service/TypeScript extension selected; bridge implementation in progress. Live validation pending.
 **Scope authority:** [Product brief and design notes](design-notes.md).
 **Integration evidence:** [Investigation findings](investigation-findings.md). Use Pi's existing extension API. Live tests and extension installation require separate authorization.
 **Target:** One user, one Linux/macOS host, tablet browser, existing interactive Pi sessions in herdr and tmux.
@@ -250,9 +250,9 @@ Maintain a distinction between:
 - **Conversation:** the session ID/file and current branch/position reported by that host.
 - **Browser selection:** an opaque service reference to that endpoint and conversation association, never an arbitrary path, pane label, or command.
 
-Use Pi's existing stale-context checks for runtime replacement rather than duplicate them. Reconnect/reload must reestablish the endpoint association; never reuse a browser selection solely because a label matches. Session switch, fork, and intentional tree navigation invalidate the old conversation association. Normal output advances the leaf too, so do not freeze an exact leaf ID for an entire run.
+Use Pi's existing stale-context checks for runtime replacement rather than duplicate them. Reconnect/reload must reestablish the endpoint association; never reuse a browser selection solely because a label matches. Session switch, fork, and intentional tree navigation invalidate the old conversation association. Invalidate in `session_before_tree`, before the leaf moves; keep controls unavailable until the bridge's `session_tree` snapshot. A post-hook alone is too late when earlier handlers await. This never vetoes desktop navigation. A later handler cancelling navigation has no public cancellation-complete event, so remain conservatively unavailable until a later authoritative agent lifecycle event or explicit reload. Normal output advances the leaf too, so do not freeze an exact leaf ID for an entire run.
 
-Same-file navigation during asynchronous input processing remains an implementation question: the current Send API does not expose a condition checked throughout processing. Verify recipient/branch behavior in the bridge slice and resolve that specific issue before claiming stale-conversation protection. Do not hide it with label matching, a preflight check alone, or a lock held until the conversational response finishes.
+Installed Pi 1.5.2 reserves prompt preflight across awaited input handlers and rejects tree navigation during that span (#9154). Independent source review found a separate window: Send deferred while async `agent_settled` handlers run can start after same-file navigation, on the new branch. The operator explicitly accepted this additional narrow race during execution, alongside delayed Send-after-Stop. Neither is an atomic targeting guarantee. Use existing public controls without a RAI navigation lock, private APIs, load-order assumptions, or a Pi patch; live verification remains required.
 
 When herdr and tmux views overlap, associate the extension with authoritative ownership context rather than listing it twice or choosing by directory. Ambiguous/unavailable associations stay visible and cannot become guessed control targets.
 
@@ -266,7 +266,13 @@ For file reads, consume LF-complete records, wait for an incomplete tail, and re
 
 ### 7.4 Web boundary and lifecycle
 
-The web layer carries bounded history pages, ongoing observations, source health, and explicit Send/Stop results. Stack-native HTTP requests and live updates are sufficient; exact endpoints and polling/streaming choices follow the stack decision.
+The Go service uses `net/http` for a read-only JSON diagnostic boundary initially (`GET /health`, `GET /sessions`, `GET /sessions/{endpointId}`). Browser polling refreshes complete bounded observations, not a replay stream. P3 adds bounded history pages and entry expansion from service-owned raw JSONL reads; P4 adds server-served HTML/JS/CSS; P5 alone enables protected POST controls. No browser Send/Stop endpoint exists in P2. All diagnostic responses reject foreign Host/Origin values and use no-store; no permissive CORS.
+
+The private Unix socket carries LF-delimited UTF-8 JSON, protocol version 1, maximum 1 MiB per frame. An extension first sends `snapshot` and thereafter replaces its observation with monotonically increasing sequence numbers. Each reconnect creates a fresh UUID `endpointId`; intentional tree navigation creates a fresh `associationId`, normal leaf advancement does not. A snapshot includes session ID/file, current leaf, completed cutoff, bounded provisional message/tools, persisted IDs at turn end, observed activity/prompt/manual-compaction state, observation timestamp, and explicit gap/limitation flags. Branch samples contain at most eight IDs/parents, not a competing history reader. In P2, `cutoff` is a conservative lower bound captured at this extension's `turn_end` callback, not a final coherent-history boundary: later `turn_end`/`agent_before_settle` proposals can extend the reported `leaf`. P3 must reconcile those authoritative persisted tails as part of its own acceptance; the current fake-context tests do not verify later-handler persistence.
+
+A local diagnostic client may send one `control` frame on a separate connection to that same private socket: target `{endpointId, associationId}`, request ID, operation `send`/`stop`, and exact text for Send. The service forwards once to the selected connection, without retry; extension responses are `submitted_unconfirmed`, `stop_requested`, `rejected`, or `outcome_unknown`. Synchronous errors after entering a public void API are uncertain, not proven no-side-effect rejection. Loss after possible dispatch is uncertain. In-flight IDs exist only until response/disconnection/deadline, not as durable receipts or replay machinery. Stop has no dependency on Send completion.
+
+Snapshots are coalesced rather than queued behind slow transport; skipped observations set `gap`. Oversized provisional content is explicitly unavailable for the rest of that turn. Initial join/reconnect uses the same complete snapshot; lack of pre-load current-turn content is stated rather than reconstructed. P3 owns coherent history/current-turn replacement; P2 does not claim integrated history acceptance.
 
 Maintain lightweight endpoint/session state for the list and detailed observations for the selected conversation. Extension event handlers must not block Pi on a slow browser or service: bound current-output buffering and resynchronize after a gap. Browser/service loss stops delivery, not Pi work.
 
@@ -278,7 +284,7 @@ Run one service on the same host as the multiplexers, under the user permitted t
 
 Install the extension using Pi's supported global/project extension mechanism. It can load into future sessions normally; existing sessions require an explicit supported load/reload. Service startup does not install or inject it into existing Pi processes. The local socket must be accessible only to the owning user.
 
-Provide a standard configuration file with a listening address and port. The conservative default is loopback; the operator explicitly chooses a LAN/Tailscale listening address for tablet access. Exact file location/schema and packaging follow stack selection. Do not add configuration for every implementation detail.
+`rai serve -config PATH` reads JSON `{ "address": "127.0.0.1", "port": 8484, "socket": "/absolute/private/rai/bridge.sock" }`; omitted config uses loopback and `~/.local/state/rai/bridge.sock`. Its directory must be user-owned, non-symlink, mode 0700; socket is mode 0600. Startup refuses to replace an existing socket/file. Operator removes an abandoned socket only after confirming its service stopped. P2 refuses non-loopback listeners; explicit LAN/Tailscale configuration is deferred until the browser security/control boundary in P5.
 
 No login or custom TLS is required by the trusted-network product assumption. Nevertheless, the service can direct agents with host privileges:
 
@@ -301,7 +307,18 @@ Choose a single stack capable of:
 - Bounded history loading and modest live updates.
 - Clear disconnect, submission, and Stop state handling and simple Linux/macOS deployment.
 
-Elixir/Phoenix LiveView and Go remain candidates for the service. Choose for this concrete local-socket, history-paging, browser-update workload and deployment needs. Do not combine both or add a separate frontend service without a demonstrated need. Record the choice and concrete module/wire boundaries as a revision to this design.
+**Decision: Go standard library service, TypeScript extension with Node built-ins.** `net`, `net/http`, `encoding/json`, and read-only file I/O cover this workload without a service framework or runtime dependencies. Browser delivery stays in the same Go process. The extension imports Pi types only and is loaded as TypeScript by Pi.
+
+Concrete ownership map (one coordinator currently owns all writes):
+
+| Slice/owner | Paths |
+| --- | --- |
+| P1 coordinator/shared | `go.mod`, `package.json`, lockfile, `tsconfig.json`, `biome.json`, `Justfile`, `.gitignore`, `cmd/rai/`, `internal/config/`, `docs/`, `README.md` |
+| P2 bridge owner | `extension/`, `internal/bridge/`, `internal/catalog/`, `internal/web/diagnostic.go` and focused tests |
+| P3 history owner (unassigned) | `internal/history/`, `internal/projection/`, synthetic fixtures in those directories |
+| P4/P5 UI owner (unassigned) | `internal/web/` except existing diagnostic boundary (serialized handoff), `web/` assets/templates/tests |
+
+`internal/bridge` owns Go wire structs and connected endpoint state; `extension/protocol.ts` owns the small matching TS wire types. This deliberate two-language boundary is checked with shared synthetic wire fixtures/tests, not a schema framework. No extension file-history parser. `Justfile` exposes build/lint/test; focused tests accept Go package paths or extension test files. Build performs dependency synchronization and TypeScript checking plus Go artifact production.
 
 ## 10. Implementation validation
 

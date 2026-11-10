@@ -1,8 +1,8 @@
 # Remote Agent Interface (RAI): Product Brief and Design Notes
 
-**Status:** Product scope confirmed; direct Pi-extension integration selected. Implementation and live validation pending.
+**Status:** Product scope confirmed; first service/bridge implementation underway. Live bridge validation and full UI remain gated.
 **Target:** One user, one Linux/macOS host, tablet browser, trusted LAN or Tailscale.
-**Stack:** Not selected. Elixir/Phoenix LiveView and Go remain candidates.
+**Stack:** Go standard-library service with an in-Pi TypeScript/Node extension; concrete boundaries in [design §§7–9](design.md#7-logical-architecture).
 **Initial design:** [Architecture, tablet UX, and implementation validation](design.md). End-to-end behavior remains to be tested.
 **Integration decision:** Herdr/tmux provide process durability and existing labels. A small Pi extension supplies direct state, output, Send, and Stop using the existing API; no Pi API change is planned. See [investigation findings](investigation-findings.md). Live tests and installation into existing sessions require separate authorization.
 

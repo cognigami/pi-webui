@@ -1,6 +1,6 @@
 # RAI Execution Plan
 
-**Status:** Ready for coordinator handoff. Planning only; no implementation, installation, or live tests have been performed under this plan.
+**Status:** P1 complete; P2 fixture implementation/review complete, stopped at the separate live-validation authorization gate. No live Pi tests, installation/reload into Pi, retained-conversation reads, or full UI implementation performed. See [current execution result](#current-execution-result-and-live-gate).
 **Authority:** [Product scope](design-notes.md), [design](design.md), and the operator's actual execution authorization.
 **Coordination:** Follow [COORDINATION.md](COORDINATION.md), including the `eng` preset, background tabs in the coordinator's own Herdr workspace, bounded assignments, and independent review.
 **Evidence:** [Investigation findings](investigation-findings.md). The [investigation plan](investigation-plan.md) is historical; do not restart its feasibility sequence.
@@ -29,7 +29,7 @@ Until that authorization is given, implement against fixtures/fakes and run ordi
 
 ### Concrete unresolved issues
 
-Resolve same-file navigation during asynchronous input processing in the first bridge slice, as design §7.2 requires. A preflight check alone is not sufficient, and normal leaf advancement is not intentional navigation. If existing supported controls cannot satisfy the targeting requirement, return that specific result for an operator decision; do not invent a private-API workaround or launch a new general investigation.
+Execution-time independent review verified that installed Pi 1.5.2 fixes the originally documented input-processing/navigation race via its built-in preflight reservation. It also found a distinct settlement-deferred Send/navigation race. The operator explicitly accepted that additional race and directed continuation to completion or gate; no Pi patch or navigation veto is authorized. See [updated findings](investigation-findings.md#execution-time-correction-pi-152-and-accepted-races). Normal leaf advancement is not intentional navigation; the bridge invalidates associations in `session_before_tree` before transition, then refreshes in `session_tree`, without preventing desktop navigation.
 
 Manual compaction/unsupported input states also need focused validation. Use the existing rejection/limitation behavior and honest feedback; no terminal fallback or duplicate compaction queue.
 
@@ -165,12 +165,38 @@ Browser checks for session selection/rename/disappearance, missing integration, 
 
 | Slice | State | Owner / result |
 | --- | --- | --- |
-| P1 | Not started | Assign at execution handoff |
-| P2 | Not started | Live-test authorization pending |
-| P3 | Not started | Fixture preparation may follow P1 |
-| P4 | Not started | Gate: validated P2 and accepted P3 |
-| P5 | Not started | Gate: P4 |
-| P6 | Not started | Gate: P3–P5 |
+| P1 | Complete | Coordinator: Go stdlib + TS/Node; concrete paths/wire/config in design §§7–9; executable workflows pass |
+| P2 | Fixture implementation/review complete; NOT live-accepted | Coordinator owns `extension/`, `internal/{bridge,catalog,web}/`; independent read-only review fixes addressed; separate live authorization pending |
+| P3 | Not started | P2 supplies lower-bound cutoff only; fixture preparation allowed, integrated acceptance blocked |
+| P4 | Blocked | Gate: live-validated P2 and accepted P3; no full UI built |
+| P5 | Blocked | Gate: P4 and validated controls; no HTTP control routes |
+| P6 | Blocked | Gate: P3–P5; README currently covers prototype only |
+
+## Current execution result and live gate
+
+### Delivered and checked
+
+- Concrete Go standard-library service, TypeScript extension, user-private Unix socket, bounded snapshots and provisional output, fresh endpoint/conversation associations, local diagnostic Send/Stop client, and read-only loopback HTTP diagnostics. No terminal transport, second transcript archive, Pi changes, or automatic control replay.
+- Existing Herdr agent/tab labels and tmux pane/window context via literal CLI arguments; duplicates/unnamed labels, partial discovery failure, missing integration, inherited/default server coverage, and ambiguous nested context are explicit. Actual ownership/nesting/label behavior has not passed live validation.
+- Independent reviewer: Pi session `01a1c632-f370-71b6-9c2d-7c960392f836`, launched with `--presets:preset eng` into coordinator-owned background tab `w12:t9` / pane `w12:p9`. Read-only review included current installed Pi source and implementation, not live controls or modifying lint. Local fixes: before-tree invalidation (not merely late post-hook observation), test-to-build dependency to avoid stale/missing fixture binaries, and closing failed/partial command writes while still holding the write lock. Focused re-review cleared the fixture boundary after these corrections; it did **not** accept P2 live or P3 history correctness. A small persisted-ID bound was also added with explicit gap/resynchronization feedback.
+- Final ordinary workflows: `build`, `lint`, `test` succeeded on macOS with Go 1.25.5 and Node 24.21.0. Tests include race-enabled Go package tests and Node tests using synthetic data/fake Pi contexts; the real Go/TS roundtrip fixture covers literal dispatch, Stop, service restart, fresh association and no replay. The test workflow builds its own current executable. No Linux, real Pi hooks/steering/queue discard, browser/tablet, or actual multiplexer-target behavior is thereby proven.
+- `cutoff` is explicitly a conservative P2 lower bound. Pi can append later `turn_end` / `agent_before_settle` proposals beyond it; P3 must reconcile the authoritative persisted tail and provisional holdback before claiming a coherent conversation. The fake host is not a reproduction of Pi's later-handler persistence.
+- Remaining prototype limitations: observed successful manual compaction requires a later authoritative agent event or explicit reload before remote Send resumes; a later-handler navigation cancellation can similarly leave transition controls unavailable until resynchronization; built-in terminal dialogs are not fully observable. These are visible conservative limitations pending live tests, not silently restored by timers or a duplicate queue.
+- Run/config/check instructions: [README](../README.md). Dependencies/build artifacts and test temporary paths are repo-local/ignored; no installed Pi or existing conversations were modified. Reviewer tab cleanup is recorded below. The earlier npm version probe hit a sandbox read denial; work paused and resumed only after the operator's explicit continuation guidance. Subsequent dependency/build workflows used the supported tools and succeeded.
+
+### Separate authorization requested — not executed
+
+Approve or amend this exact proposed envelope before live testing:
+
+1. **Resources:** one new disposable Herdr instance named `rai-bridge-validation` (never the default server), one new tmux server using the exact repo-local socket `.rai-investigation/live/tmux.sock`, and two new interactive Pi targets in each. Never replace an existing instance/socket/name; collision returns for a decision. No coordinator/worker/production panes are test targets. The validation owner alone manages these resources.
+2. **Paths/service:** `.rai-investigation/live/` only for fixture extensions, per-target working/session directories, configuration and temporary files; a dedicated RAI service on `127.0.0.1:8485` with `.rai-investigation/live/rai.sock`. No `/tmp`, LAN/public listeners, production history reads, or installed Pi/settings changes. Bind failures return for a decision.
+3. **Payloads/work:** synthetic conversations only, ordinary prompts such as `Reply with exactly RAI_OK; do not use tools`, exact whitespace/Unicode/multiline/command-looking strings, desktop draft sentinels, and a disposable fixture tool/input handler with an interruptible promise latch. The fixture may delay input/settlement or show a benign dialog to exercise the two accepted races, normal steering, Stop and unsupported-state feedback. Manual compaction/fork/tree/reload act only on these synthetic conversations. No external side-effect tools, task subagents, private data, or network writes beyond ordinary configured model requests.
+4. **Faults:** disconnect/reconnect the disposable extension/service socket, stop/restart only this RAI test service, throttle a diagnostic reader, intentionally drop a control response, and replace/reload only the disposable Pi targets. Rename/nest the disposable panes, switch/fork synthetic conversations, and interrupt the fixture workload. Do not alter installed integrations, existing multiplexer instances, or production agent processes.
+5. **Budget/cleanup:** first 20-minute identity/control phase per backend; if it passes, agree the next bounded acceptance phase for exact input, recovery and history integration. Cleanup closes only the exact returned test pane/instance IDs and removes only created files under `.rai-investigation/live/`; never stop the default Herdr server. Report failed/untested cases rather than widening authority.
+
+Until authorized, **P2 remains unvalidated and full UI work is stopped**. The two accepted races need no special cancellation machinery and are not renewed delivery gates. The specific next decision is live-test authorization, not another stack/feasibility review.
+
+**Coordination cleanup:** coordinator-created reviewer tab `w12:t9` closed successfully by its returned ID; no pre-existing panes were closed and no live-test resources were created. Ordinary fixture service children/sockets are shut down by tests; ignored build/dependency artifacts remain for development.
 
 ## 6. Coordinator start brief
 

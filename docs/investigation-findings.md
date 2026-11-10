@@ -1,7 +1,18 @@
 # RAI Integration Investigation Findings
 
-**Status:** Read-only investigation complete; fresh independent correctness review found no blocking issues or required corrections. No live tests or extension installs authorized or performed.
+**Status:** Historical read-only investigation, with the execution-time Pi 1.5.2 correction below. No live Pi tests or extension installs authorized or performed.
 **Scope:** [Product brief](design-notes.md), [design](design.md), and [investigation plan](investigation-plan.md), including the operator's clarification below. No production stack selected.
+
+## Execution-time correction: Pi 1.5.2 and accepted races
+
+The original analysis below inspected Pi 1.5.0 and is historical evidence, not the current integration contract. An independent read-only reviewer during execution checked the installed package (1.5.2) and bundled CLI:
+
+- `dist/core/agent-session.js:1715–1726` reserves `_promptPreflightCount` throughout awaited input/auth processing; `navigateTree:3363–3368` rejects navigation during preflight/streaming. Navigation-first reserves its controller before yielding (`3398–3408`); prompts reject under it (`1712–1714`). Fix #9154 closes the original input-handler/navigation interleaving. The bundled CLI contains the fix too (`dist/bundle/chunks/chunk-VEJDBY3O.js:855,860,871`). Do not add a RAI navigation lock to duplicate this host guarantee.
+- A distinct gap remains: `prompt:1695–1699` defers actions during `_isEmittingAgentSettled`, before reservation. `_emitAgentSettled:738–760` marks the run inactive, awaits public settlement handlers, then invokes deferred actions. Send deferred during a paused handler can execute after same-file navigation on the new leaf. `isIdle:1130–1133` does not expose this span. The public API supplies no expected-association token.
+- **Operator decision during execution:** “Accept the race. Continue to completion or gate.” This accepts that specific settlement-deferred navigation window, in addition to the previously accepted delayed Send-after-Stop window. It does not authorize Pi changes, navigation vetoes, live tests, or installation into existing sessions. No atomic targeting guarantee is claimed.
+- Public compaction hooks now expose `reason: "manual"`, success, and failure (`types.d.ts:620–655,1235–1237`). Success fires before the controller clears (`agent-session.js:2400–2417`), failure after clearing (`2431–2447`). There is no public compaction-completely-settled getter. The first bridge conservatively leaves Send unavailable after observed successful manual compaction until a later agent lifecycle event or explicit reload; this limitation must be tested and reported, not hidden behind an invented compaction queue.
+
+These are source-supported conclusions, not live observations. Suggested installed-host fixture reproductions of the two interleavings were not run. Bridge fake-context tests validate RAI behavior, not Pi's concurrency implementation.
 
 ## 1. What we learned
 
