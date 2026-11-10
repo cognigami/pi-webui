@@ -192,6 +192,8 @@ After reconnecting, refresh history and current activity before inviting a retry
 
 ### 5.4 Stop
 
+**Accepted investigation limitation:** The operator approved evaluating Pi's existing controls without requiring a Pi change first. Stop interrupts current work and clears already queued input, but a Send still delayed in input processing may arrive afterward. This exception qualifies the absolute pending-Send ordering promise below; it does not waive other targeting/history requirements or authorize live tests.
+
 **Stop** interrupts the selected Pi session's active turn and discards all steering messages pending at the stop boundary. Discarded steering must not start another turn after the interruption. This is a required combined behavior, not a conversational request to stop and not merely an abort operation that leaves steering queued.
 
 - Keep Stop in the footer, available with the composer open or collapsed and accessible with the tablet keyboard open. No routine confirmation dialog; the purpose is immediate interruption.

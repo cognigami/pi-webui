@@ -9,13 +9,13 @@
 
 The extension API supplies the observation primitives, but its controls do not yet establish the full required behavior. A Send can pause inside another extension's input processing, then finish **after Stop**, or after Pi has moved to another point in the conversation. The existing Send call gives the caller no completion/cancellation boundary for that processing.
 
-**Recommendation:** pursue the direct-extension direction, but first investigate a small supported Pi control-API improvement. Do not start production implementation or declare full feasibility. More happy-path Send tests cannot establish the missing guarantee.
+**Operator decision after review:** evaluate the direct extension using Pi's existing controls. The operator accepted the timing limitation that a Send still delayed in input processing may arrive after Stop; a Pi API change is **not required upfront**. The frequency has not been measured. The next proposed step is a small prototype that deliberately exercises this case, not production implementation. Live tests/installations still require separate authorization; no prototype has been started. Other targeting/history requirements remain unchanged.
 
 ### Operator clarification
 
 The original investigation treated multiplexer input as a constraint and stopped at I1: terminal/file observations could not reliably establish the live conversation or safely bind input to it. The operator clarified that the multiplexer is for **process durability**, and explicitly allowed investigating direct Pi-side integration. That changes the integration direction, not the requirements for safe Send, combined Stop, saved history, or independent process lifetime.
 
-The operator did not authorize live tests, installing/reloading an extension into existing sessions, changing Pi itself, or normalizing submitted whitespace. Earlier terminal-control findings remain in source-control history; this document consolidates the current result.
+The operator accepted the delayed-Send/Stop limitation after the findings were reviewed. The operator did not authorize live tests, installing/reloading an extension into existing sessions, changing Pi itself, or normalizing submitted whitespace. Earlier terminal-control findings remain in source-control history; this document consolidates the current result.
 
 ## 2. Environment and evidence
 
@@ -104,13 +104,13 @@ In the current TUI host, public `ctx.abort()` invokes the normal path that synch
 
 That is a plausible current-source Stop primitive, **not** a proven combined-operation contract. Public `ctx.abort()` returns void and promises abort, not a completed discard/settlement receipt covering unfinished Send processing.
 
-Concrete interleaving: Send pauses in an input handler; Stop clears queues and aborts; the handler resumes afterward and starts work or queues its input again. An idle/settled observation can miss such pre-start input. This violates the required “Stop follows already-started input and prevents its queued work from restarting” behavior.
+Concrete interleaving: Send pauses in an input handler; Stop clears queues and aborts; the handler resumes afterward and starts work or queues its input again. An idle/settled observation can miss such pre-start input. This violates the original absolute ordering promise. The operator has since accepted this specific timing limitation for the existing-API prototype.
 
 A socket request ID, service-side mutex, aggregate pending-message check, or synchronous precheck does not close that gap inside Pi. Do not invent a queue keeper, depend on extension load order, lock desktop navigation until conversational completion, or reach into hidden session objects as a workaround.
 
 References: `PI/dist/core/agent-session.js:1081–1086,1441–1497,1962–2007,2837–2844`; `dist/modes/interactive/interactive-mode.js:1566–1568,2161,3913–3942,3961–3979`; `dist/core/extensions/types.d.ts:260–263`.
 
-**Acknowledgments:** request received/dispatch attempted is observable; accepted/steering queued is not established by void return. `ctx.hasPendingMessages()` is aggregate and excludes the separate TUI compaction queue. Public input/message events carry no submission token; text equality is not correlation (`types.d.ts:855–870,926–950`). No public extension queue-update event was identified. Acceptance-unconfirmed feedback is permitted; the concrete wrong-position/post-Stop effects—not merely weak feedback—are the blockers. A lost response remains outcome unknown, never an automatic retry.
+**Acknowledgments:** request received/dispatch attempted is observable; accepted/steering queued is not established by void return. `ctx.hasPendingMessages()` is aggregate and excludes the separate TUI compaction queue. Public input/message events carry no submission token; text equality is not correlation (`types.d.ts:855–870,926–950`). No public extension queue-update event was identified. Acceptance-unconfirmed feedback is permitted. Wrong-position effects remain a targeting concern; the delayed-Send/post-Stop effect is now an explicitly accepted limitation, not a prerequisite for changing Pi. A lost response remains outcome unknown, never an automatic retry.
 
 ## 7. Gate disposition and smallest next step
 
@@ -120,21 +120,21 @@ References: `PI/dist/core/agent-session.js:1081–1086,1441–1497,1962–2007,2
 | Correct labels/ownership, including nesting and renames | **unverified** end-to-end | **unverified** end-to-end |
 | Exact ordinary Send, no accidental desktop draft | Plausible direct primitive; **unverified** | Same |
 | Safe acceptance after conversation changes | **unverified; blocking gap** across async input | Same |
-| Stop interrupts and discards earlier pending input | **unverified; blocking gap** for delayed Send | Same |
+| Stop interrupts and clears queued input | **unverified**; delayed-Send exception accepted | Same |
 | Read-only complete history and coherent ongoing output | **unverified** integration | Same |
 | Pi survives browser/service loss; reconnect never replays controls | Proposed ownership supports it; **unverified** | Same |
 
 No backend passes the full required gates. I2–I5 live phases were **not run**, not failed experiments. The original file-only current-position mechanism was source-disproven; direct extension access removes that particular information gap but does not by itself prove safe control.
 
-**Smallest next technical question:** can Pi expose a supported control boundary that:
+**Optional stricter alternative, not a prerequisite after the operator's decision:** a future Pi control-API improvement could provide a boundary that:
 
 1. Submits ordinary input to the intended session/navigation state, checking that condition through awaited input processing.
 2. Reports queued/started/handled/rejected **when acceptance is decided**, not after the conversational response, and lets Stop cancel/order earlier unfinished submissions. Correlate the submission if queued acceptance is claimed.
 3. Aborts and discards earlier unfinished/queued input without allowing it to return after Stop, and reports completion when settled. Cover the TUI compaction queue or reject unsupported states before effects.
 
-This is a proposed **Pi API improvement**, not permission to patch the installed package. An existing internal preflight callback is an implementation lead, not a supported extension option. Merely returning the core prompt promise is insufficient: idle-origin prompt completion waits for the full response, which must not delay Stop.
+This describes an optional **Pi API improvement**, not the selected next step or permission to patch the installed package. An existing internal preflight callback is an implementation lead, not a supported extension option. Merely returning the core prompt promise is insufficient: idle-origin prompt completion waits for the full response, which must not delay Stop.
 
-If the operator approves investigating that API change, first settle its contract and where it would be implemented. No new transport framework, permanent receipts, transcript archive, or web UI is needed. An observation-only demo could proceed independently, but would not answer the control question and is not necessary to establish the source-demonstrated gap.
+The accepted next direction is a minimal extension prototype using the existing API, including deliberate delayed-Send/Stop tests and honest feedback about that limitation. Safe conversation targeting, observation, history, and independent lifetime still need evidence. Obtain separate live-test authorization before creating targets or installing the prototype. No new transport framework, permanent receipts, transcript archive, or web UI is needed. Revisit a Pi API change only if later evidence and the operator's requirements warrant it.
 
 ### Later live-test authorization, not granted now
 

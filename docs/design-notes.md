@@ -4,7 +4,7 @@
 **Target:** One user, one Linux/macOS host, tablet browser, trusted LAN or Tailscale.
 **Stack:** Not selected. Elixir/Phoenix LiveView and Go remain candidates.
 **Initial design:** [Architecture, tablet UX, and feasibility plan](design.md). Integration assumptions remain provisional.
-**Operator clarification after I1:** Herdr/tmux provide process durability, not a required input transport. Investigating a Pi-side extension for direct state, output, Send, and Stop is explicitly allowed. No live tests or installation into existing sessions have been authorized; see [current findings](investigation-findings.md).
+**Operator clarification after I1:** Herdr/tmux provide process durability, not a required input transport. Investigating a Pi-side extension for direct state, output, Send, and Stop is explicitly allowed. The operator subsequently accepted using Pi's existing controls with a documented Stop timing limitation: a Send still delayed in input processing may arrive after Stop. A Pi API change is not a prerequisite to a prototype. This does not authorize live tests or installation into existing sessions; see [current findings](investigation-findings.md).
 
 This document replaces the initial architecture draft and its later update. Requirements below reflect the product discussion; candidate mechanisms are not established integration contracts.
 
