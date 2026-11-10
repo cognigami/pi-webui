@@ -4,6 +4,8 @@
 **Baseline:** [Design](design.md), especially §§5, 7, and 10; [product scope and existing evidence](design-notes.md).
 **Goal:** Determine whether existing interactive Pi sessions in both herdr and tmux can satisfy the required identity, conversation, Send, and Stop contracts. Produce an evidence-backed go/no-go decision, not a production implementation.
 
+**Operator-approved follow-up after I1:** Investigate a Pi-side extension for direct state/output/control, with herdr/tmux retaining process durability. The earlier restriction against introducing an extension is lifted for this investigation, not permission to install one into running sessions or conduct live tests. The remaining gate requirements and authorization boundaries still apply. Record follow-up evidence in [the current findings](investigation-findings.md); interpret multiplexer input/control experiments below as the original track, not a requirement to inject terminal keys.
+
 ## 1. Scope and priorities
 
 Freeze the design as the investigation baseline. Reopen it only when evidence requires a product or integration decision; do not pursue general ambiguity cleanup or UX polish.

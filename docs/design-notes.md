@@ -4,6 +4,7 @@
 **Target:** One user, one Linux/macOS host, tablet browser, trusted LAN or Tailscale.
 **Stack:** Not selected. Elixir/Phoenix LiveView and Go remain candidates.
 **Initial design:** [Architecture, tablet UX, and feasibility plan](design.md). Integration assumptions remain provisional.
+**Operator clarification after I1:** Herdr/tmux provide process durability, not a required input transport. Investigating a Pi-side extension for direct state, output, Send, and Stop is explicitly allowed. No live tests or installation into existing sessions have been authorized; see [current findings](investigation-findings.md).
 
 This document replaces the initial architecture draft and its later update. Requirements below reflect the product discussion; candidate mechanisms are not established integration contracts.
 
@@ -64,7 +65,7 @@ RAI provides information, ordinary Pi messaging, and a Stop action that interrup
 - Shutdown automation or automatic certification that all work is finished.
 - Process-termination or worker-tree cancellation controls, and non-conversational approval interfaces. Pi turn interruption plus steering discard is included.
 - Replacing Pi's inter-agent communication or implementing a new coordinator/session graph.
-- A Pi extension bridge as the chosen integration path. Multiplexer integration is the selected direction.
+- Requiring RAI to launch or own Pi processes. A Pi extension bridge is now an authorized investigation direction; the multiplexer remains responsible for process lifetime.
 
 ## 4. Candidate architecture, not yet a contract
 
@@ -74,16 +75,16 @@ Tablet browser
       | HTTP / live updates over trusted LAN or Tailscale
       v
 RAI web service
-      |-- discover/identify Pi panes through herdr and tmux
-      |-- observe current terminal output/activity
-      |-- submit ordinary text through the selected multiplexer
-      |-- interrupt the selected turn and discard queued steering
-      |-- read existing Pi saved history, if correctly associated
+      |-- retrieve existing herdr/tmux labels and pane context
+      |-- connect to a Pi-side extension (under investigation)
+      |      |-- report current conversation and structured ongoing output
+      |      |-- accept ordinary messages and combined Stop
+      |-- read correctly associated existing Pi saved history
       v
-Existing Pi processes, owned by their multiplexers
+Existing Pi processes + extension, owned by their multiplexers
 ```
 
-Multiplexer input does not require terminal output to be the only history source. Reading Pi's existing saved conversation is a candidate way to provide catch-up without adding another archive.
+The extension would connect RAI to the existing interactive Pi, without spawning a second agent or transferring process ownership. Pi must keep working when the browser/service disconnects, and a service restart must not replay Send/Stop. Reading Pi's existing saved conversation remains a candidate for catch-up without another archive. Sessions without the extension would need it loaded before direct integration is available; installing it is not automatically an attachment to every running Pi.
 
 Do not assume that stripping ANSI sequences produces a conversation feed, or that a text payload followed by Enter is an atomic Pi message. A screen capture, raw PTY stream, and saved conversation are different sources with different guarantees.
 

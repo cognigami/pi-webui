@@ -2,6 +2,7 @@
 
 **Status:** Initial design; UX specified, integration feasibility not yet demonstrated.
 **Scope authority:** [Product brief and design notes](design-notes.md).
+**Integration clarification after I1:** The operator intends herdr/tmux to keep Pi alive independently of the console/web service. A Pi-side extension for direct integration is now under investigation; terminal-key injection is not required. The multiplexer-control mechanisms below describe the original candidate, not a constraint on this follow-up. Conversation, Send/Stop, lifetime, and safety requirements remain unchanged; live tests remain separately gated. See [follow-up findings](investigation-findings.md).
 **Target:** One user, one Linux/macOS host, tablet browser, existing interactive Pi sessions in herdr and tmux.
 
 This design specifies the intended experience and logical boundaries. It does not establish undocumented multiplexer or Pi contracts. Stack selection and production implementation follow the feasibility gates in §10. Writing this document does not authorize experiments on existing agents.
