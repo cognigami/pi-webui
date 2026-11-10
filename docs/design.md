@@ -1,22 +1,22 @@
 # Remote Agent Interface: Initial Design
 
-**Status:** Initial design; UX specified, integration feasibility not yet demonstrated.
+**Status:** Initial design; direct Pi-extension integration. Implementation and live validation pending.
 **Scope authority:** [Product brief and design notes](design-notes.md).
-**Integration clarification after I1:** The operator intends herdr/tmux to keep Pi alive independently of the console/web service. A Pi-side extension for direct integration is now under investigation; terminal-key injection is not required. The multiplexer-control mechanisms below describe the original candidate, not a constraint on this follow-up. Conversation, Send/Stop, lifetime, and safety requirements remain unchanged; live tests remain separately gated. See [follow-up findings](investigation-findings.md).
+**Integration evidence:** [Investigation findings](investigation-findings.md). Use Pi's existing extension API. Live tests and extension installation require separate authorization.
 **Target:** One user, one Linux/macOS host, tablet browser, existing interactive Pi sessions in herdr and tmux.
 
-This design specifies the intended experience and logical boundaries. It does not establish undocumented multiplexer or Pi contracts. Stack selection and production implementation follow the feasibility gates in §10. Writing this document does not authorize experiments on existing agents.
+This design specifies the intended experience and logical boundaries. It does not establish undocumented multiplexer or Pi contracts. The delivery sequence is in §11 and implementation validation is in §10. Writing this document does not authorize experiments on existing agents.
 
 ## 1. Design position
 
-RAI is a remote conversation and observation surface, not a remote terminal. Multiplexers continue owning Pi processes and PTYs. RAI discovers those sessions, reads existing saved conversation history, observes available current activity, and submits ordinary Pi input through the owning multiplexer.
+RAI is a remote conversation and observation surface, not a remote terminal. A small extension inside each participating Pi provides current conversation identity, structured output, ordinary Send, and Stop. An independent RAI web service connects that extension to the browser. Herdr/tmux retain ownership of Pi processes and PTYs and supply existing human-readable labels; they are not the input or output transport.
 
 The first version has two primary surfaces:
 
 1. **Session list:** choose a running Pi session using its existing herdr/tmux label.
 2. **Conversation:** read the conversation, enter a message, or tap **Stop** to interrupt the current turn and discard queued steering messages.
 
-The conversation is one scrollable view, including ongoing output where the integration can provide it. The user should not have to navigate separate history and terminal panels. Internally, saved history and terminal observations have different guarantees; presenting current output coherently is a feasibility requirement, not an assumed capability.
+The conversation is one scrollable view combining existing saved history with structured ongoing response, thinking, and tool updates. The user should not have to navigate separate history and terminal panels. Joining live events to persisted entries still needs integrated verification; terminal scraping is not a fallback.
 
 No session launcher, terminal keyboard emulator, generated summary, unread system, agent graph, process-termination control, or shutdown control is included. Stop interrupts Pi's current turn; it does not terminate Pi or promise to cancel independent workers.
 
@@ -66,7 +66,7 @@ The page must remain usable with the software keyboard open: conversation histor
 
 Each row shows:
 
-- The existing agent-assigned multiplexer label as the primary name, not a required Pi conversation name. In tmux, use the window name or pane title carrying that label; use the tmux session name as context where it describes a group of panes. Verify the equivalent herdr field during feasibility work.
+- The existing agent-assigned multiplexer label as the primary name, not a required Pi conversation name. In tmux, use the window name or pane title carrying that label; use the tmux session name as context where it describes a group of panes. Validate the equivalent herdr label mapping during bridge implementation.
 - Project/directory context where available, with disambiguation for otherwise identical labels.
 - A coordinator badge only when supported by a verified source, not inferred from activity, recency, or the first pane found.
 - An activity label and its freshness; unknown is a valid state.
@@ -84,11 +84,13 @@ The human-readable labels should make the coordinator and other agents recogniza
 Discovery distinguishes:
 
 - **Loading:** enumeration has not completed.
-- **No Pi sessions found:** both available backends were successfully checked.
+- **No Pi sessions found:** backend discovery completed successfully and found no running Pi candidates, not merely no connected extensions.
 - **Partially available:** one backend failed or could not be inspected; show which coverage is missing.
 - **Unavailable:** discovery failed; do not present an empty list as authoritative.
 
-A selected session that disappears remains visible as unavailable until the user selects another. Never silently redirect the conversation or composer to a different session.
+A Pi session without the RAI extension is listed as **Integration unavailable** where backend discovery can identify it. It must be explicitly loaded/reloaded through Pi's supported mechanism before direct interaction is available; copying an extension file does not attach it to an already-running session. Partial backend visibility remains explicit. No terminal-input fallback.
+
+A selected session that disappears or loses its extension connection remains visible as unavailable until it can be reassociated or the user selects another. Never silently redirect the conversation or composer to a different session.
 
 ## 4. Conversation
 
@@ -118,19 +120,13 @@ On session switch, open the destination near its newest content. Exact reading-p
 
 ### 4.2 Ongoing output in the conversation
 
-The user sees one conversation, not a completed-history panel plus a separate terminal panel. Ongoing assistant output and tool activity should appear at the bottom of that conversation where observable. Status stays in the conversation header.
+Use the extension's `message_start/update/end` and `tool_execution_start/update/end` events to render a replaceable provisional turn at the conversation tail. Preserve tool-call identifiers, including parent identifiers for nested activity. Unknown content/result types have an explicit fallback display rather than guessed structure. Status stays in the header.
 
-This presentation still requires evidence about the underlying sources:
+At a confirmed `turn_end`, use its persisted assistant/tool-result entry IDs and an authoritative branch snapshot to replace the provisional turn with saved content together. While the provisional turn is displayed, independently read history must not also append those same records. Keep only a completed-history cutoff and bounded current-turn state, not another transcript archive.
 
-- Saved history supplies completed messages; it does not necessarily contain the response or tool progress currently visible in the terminal.
-- Use structured ongoing content only if its role and identity can be established. Otherwise, a readable current-output block may appear inline at the conversation tail, labeled **Live terminal view** rather than attributed to an assistant or tool without evidence.
-- An inline terminal view is a replaceable current snapshot, not a transcript of every redraw. It must not force the user to switch to another pane.
-- Reconcile provisional output with completed history only when identity/ordering evidence supports it. Do not deduplicate by text similarity or leave duplicated full messages as the intended steady-state experience.
-- Streaming partials, tool progress, and queued steering appear only if observable. Say **Live output unavailable** or **Queue visibility unavailable** when relevant, rather than implying completeness.
-- Historical prompts remain historical; only current evidence can establish a pending-input state.
-- If neither structured ongoing content nor a readable inline current view can be provided, the feasibility gate fails. Revisit the integration with the user instead of quietly dropping live visibility or restoring the split-panel UX.
+`message_end` is not a persistence boundary: it precedes saving, and later handlers may transform the content. Do not correlate by text similarity, a timer, or an incidental leaf observed during that event. Reconnect must resynchronize history and ongoing state together rather than replay a stream and hope it matches.
 
-No terminal keyboard emulator or clickable terminal controls are provided. Stop and Send are explicit actions on the selected Pi session, not controls embedded in captured terminal content.
+Verify joining mid-turn, interrupted/error turns, reconnect gaps, and transformations by later handlers during bridge implementation. Show **Live output unavailable** or an explicit synchronization gap when needed; do not fill gaps with terminal snapshots. Queued steering is shown only where observable. Historical prompts remain historical; only current evidence can establish pending input.
 
 ### 4.3 Activity vocabulary
 
@@ -138,14 +134,14 @@ Keep source health separate from agent activity. A disconnected browser must not
 
 | Label | Meaning and evidence requirement |
 | --- | --- |
-| Working | A verified source reports active Pi work; not merely recent terminal bytes. |
-| Waiting for input | A verified source identifies an input-wait state. Ordinary conversational input may be possible; special dialogs may still require the terminal. |
-| Idle | A verified source reports no active turn. This does not mean the task is complete. |
-| Unknown | No reliable agent-state evidence is available. Recent output can still be shown separately. |
+| Working | Pi reports active work through extension events/state, not merely recent output. |
+| Waiting for input | A current Pi prompt event identifies an input-wait state. Extension UI prompt events do not cover every built-in selector; unsupported dialogs still require the terminal. |
+| Idle | Pi reports settlement/idle. Use `agent_settled` and current state, not `agent_end` alone, which may precede retries or continuations. This does not mean the task is complete. |
+| Unknown | No reliable current Pi state is available. Retained conversation content can still be read. |
 | Unavailable / stale | The session or observation source cannot currently be reached; retain the last known observation and its timestamp. |
 | Exited | The tracked Pi process is confirmed gone. This is not a task-success verdict. |
 
-Expose useful herdr-specific state detail in session details only after its semantics are verified. Do not assign equivalent states to tmux based on a quiet screen. Do not introduce a “safe to shut down” state or derive task completion from inactivity.
+Use Pi state consistently for sessions under either multiplexer. Useful herdr-specific detail may appear in session details after its semantics are verified, but is not a substitute for current Pi state. Do not introduce a “safe to shut down” state or derive task completion from inactivity.
 
 ## 5. Composer and submission contract
 
@@ -156,7 +152,7 @@ Expose useful herdr-specific state detail in session details only after its sema
 - Clear empties only this conversation's unsent draft. Close collapses the editor without clearing it. When a saved draft exists, the compact control reads **Continue draft…**.
 - Disable Send for empty/whitespace-only content, an unavailable or unverified target, a disconnected client, or an outstanding submission from this composer.
 - Preserve the exact nonempty text, including newlines and special characters. Do not trim or interpolate it through a shell.
-- Being busy alone does not disable Send. Submission uses Pi's ordinary interactive steering behavior, verified by the feasibility tests.
+- Being busy alone does not disable Send. Submission uses Pi's ordinary steering behavior; validate it during bridge implementation.
 - Ordinary conversational approvals use this composer. **Stop** is a separate footer action, available with the composer open or closed; no special approval interface, follow-up selector, or process-termination control is included.
 - If a terminal-only dialog or unsupported input state is known to prevent safe ordinary submission, disable Send and explain that terminal action is required.
 
@@ -164,22 +160,24 @@ Keep one remote draft per Pi conversation/branch in page memory, keyed by identi
 
 On Send, capture the exact draft, collapse the editor, dismiss the keyboard, and show progress in the footer. While the request is pending, its submitted text can be reviewed but not edited or cleared; Stop remains available. Once delivery/acceptance is established at the reported boundary, clear that submitted draft. A known failure or uncertain outcome retains the text under the original conversation for deliberate review/reuse, without reopening the editor or keyboard automatically. In-flight submissions and their outcomes stay associated with their original recipient when the user switches sessions.
 
-Desktop and tablet may both be open, but the operating assumption is one person typing in one place at a time. RAI serializes its own submissions to a target; it does not claim to lock out desktop typing. The user must not type in the desktop editor while a remote submission is being applied.
+Desktop and tablet may both be open, with one person typing at a time. Send bypasses the desktop editor; RAI does not lock desktop typing or navigation. Intentional conversation changes must invalidate stale browser selections (§7.2).
 
-### 5.2 Desktop drafts and exact input
+### 5.2 Direct input and desktop drafts
 
-An unfinished desktop draft may be discarded, but must never be prepended to or accidentally submitted with the remote message. The verified submission operation must establish the intended ordinary editor state, replace a disposable draft, insert literal multiline text, and invoke normal submission without triggering unintended key bindings.
+The candidate extension call is `pi.sendUserMessage(text, { deliverAs: "steer", expandPromptTemplates: false })`. It starts ordinary input while idle or steers while busy, without submitting the desktop editor. No clearing, pasting, key injection, or accidental desktop-draft concatenation is involved. Ordinary Send can leave a desktop draft untouched.
 
-This is a feasibility requirement, not a presumed sequence of keys. If it cannot be established safely through the multiplexer, the integration direction must be revisited. Do not compensate with an unverified “clear line, paste, Enter” recipe.
+Pass the exact composed string without trimming or normalization. Disabling command/template expansion keeps command-looking text conversational. Existing Pi input extensions still run and may deliberately transform or handle it; RAI should preserve that behavior rather than bypass it. Verify whitespace, Unicode, multiline input, and extension transformations in disposable sessions.
+
+This API returns void, not an acceptance promise. Input processing may continue asynchronously after the call returns. Do not await that return as proof of acceptance or wait for conversational completion before allowing Stop. Manual compaction has a distinct unsupported/rejected-input path that needs investigation; no terminal fallback or duplicate compaction queue is planned.
 
 ### 5.3 Submission feedback
 
-Show brief feedback in the compact conversation footer, independently of the collapsed composer. **Sending** means the request is in progress; **Sent** or **Steering queued** requires evidence of the corresponding Pi state. When the integration proves only terminal delivery, use **Input sent; acceptance unconfirmed**. The distinctions below define failure handling, not extra steps in the user journey:
+Show brief feedback in the compact conversation footer, independently of the collapsed composer. **Sending** means the request is in progress; **Sent** or **Steering queued** requires evidence of the corresponding Pi state. With the current void Send API, use **Submitted; acceptance unconfirmed** after the extension reports dispatch was attempted, not **Sent** or **Steering queued**. The distinctions below define failure handling, not extra steps in the user journey:
 
 | State | UI and behavior |
 | --- | --- |
 | Sending | Collapse the editor and dismiss the keyboard. Keep the submitted text read-only for review and show pending feedback in the footer. Prevent double taps from submitting twice. |
-| Input sent | Use only when the verified multiplexer input operation reports success. Clear the editable draft, retain a temporary receipt with the exact submitted text, and say “Input sent; acceptance unconfirmed.” This does not prove acceptance or execution. |
+| Submitted; acceptance unconfirmed | The extension reports dispatch was attempted. Clear the editable draft and retain its exact text in the temporary receipt. The void API return does not prove acceptance, queueing, or execution. |
 | Sent / Steering queued | Show only when the corresponding acceptance or steering-queue state is reliably associated with this submission. The ordinary history entry is authoritative for saved content; do not add a second permanent user message. |
 | Not sent | Use only when failure is known to precede any input side effect. Preserve the text for an explicit retry. |
 | Outcome unknown | Some input may have reached Pi, or the browser lost the response. Retain the text/recipient and say “Check the conversation or terminal before sending again.” Never retry automatically. |
@@ -192,18 +190,15 @@ After reconnecting, refresh history and current activity before inviting a retry
 
 ### 5.4 Stop
 
-**Accepted investigation limitation:** The operator approved evaluating Pi's existing controls without requiring a Pi change first. Stop interrupts current work and clears already queued input, but a Send still delayed in input processing may arrive afterward. This exception qualifies the absolute pending-Send ordering promise below; it does not waive other targeting/history requirements or authorize live tests.
+Stop uses Pi's existing interruption path to abort current work and discard queued steering. In the inspected TUI host, use `ctx.abort()` followed by `ctx.ui.setEditorText("")` to discard text restored from cleared queues. This may discard desktop editor text; an unsent RAI draft remains untouched.
 
-**Stop** interrupts the selected Pi session's active turn and discards all steering messages pending at the stop boundary. Discarded steering must not start another turn after the interruption. This is a required combined behavior, not a conversational request to stop and not merely an abort operation that leaves steering queued.
+- Keep Stop in the footer with the composer open or collapsed. No routine confirmation dialog.
+- Enable it for a reachable, verified target whenever work or queued steering may remain. Disable it when known idle with no queued steering, or while its dispatch is pending; unknown activity alone does not disable it.
+- Dispatch Stop promptly, including while a Send awaits feedback. Do not wait for a conversational response or history acknowledgment. Never automatically resend it.
+- Show **Stop requested** when dispatch is known, then observed activity/settlement. A lost response means **Stop outcome unknown**.
+- Stop does not terminate Pi or its multiplexer, undo completed actions, or promise cancellation of independent workers/background jobs.
 
-- Keep Stop in the footer, available with the composer open or collapsed and accessible with the tablet keyboard open. No routine confirmation dialog; the purpose is immediate interruption.
-- Enable it for a reachable, verified target whenever work or queued steering may remain. Disable it if the session is known idle with no queued steering, or while the stop operation is already pending. Unknown activity alone does not make Stop unavailable.
-- Keep it usable while a Send request awaits feedback. Order the actual per-target input/stop operations so Stop applies after any already-started submission and before further sends. Do not wait for a conversational response or a history acknowledgment to issue Stop. Disable new sends while stopping.
-- Show **Stopping…** during the operation. Show **Stopped · steering cleared** only when both interruption and queue clearance are established. Otherwise show the known result and identify the unconfirmed part; a lost connection means **Stop outcome unknown**, not success.
-- Stop does not terminate the Pi process, kill its multiplexer, undo actions already taken, or promise cancellation of independently running workers/background jobs.
-- An unsent remote composer draft is not queued steering and is retained. Pending-steering UI is cleared only after the underlying discard is confirmed; never replay discarded text automatically.
-
-Verify the installed Pi/multiplexer interrupt and queue-discard mechanisms and their ordering. Do not assume a particular key, signal, or repeated escape sequence implements this contract. If an in-progress Send may only have partially applied text, Stop must still interrupt safely without submitting those fragments. A partial success, such as interrupting without clearing steering, does not pass the Stop gate.
+Use the existing API; no additional Pi control API or queue manager is planned.
 
 ## 6. Disconnects, stale data, and accessibility
 
@@ -221,64 +216,67 @@ Use semantic headings, labeled controls, visible keyboard focus, and touch targe
 Tablet browser
   Session list | Conversation (history + ongoing output) | Send / Stop
                            |
-                 RAI web service (one host)
-                 /          |             \
-        discovery/control read-only     browser updates
-        + observation     history reader + request handling
-          /       \          |
-       herdr      tmux    existing Pi JSONL
-          \       /
-       existing interactive Pi processes
-       (PTY/process lifetime owned by multiplexers)
+                    RAI web service
+                     /           \
+          mux labels/context    local Unix socket
+                |                    |
+           herdr / tmux       extension inside Pi
+                                     |
+                          current state + saved history
+
+Herdr/tmux owns Pi and its PTY, independently of RAI and the browser.
 ```
 
-Implement the backend distinctions as small modules/functions with a shared logical contract, not a general plugin framework or separate services. A database, broker, second archive, and agent extension are not required. Runtime session observations and UI receipts can be ephemeral.
+Use one independent web service and a small TypeScript extension running inside each participating Pi. The extension initiates a local connection to the service over a user-private Unix socket. No separate daemon per Pi, launcher, database, broker, permanent receipt store, or second transcript archive is needed. Keep only bounded current display state and ordinary page-local UI state.
 
-### 7.1 Multiplexer integration
+### 7.1 Extension bridge and multiplexer context
 
-Each backend must support, using verified installed interfaces:
+The extension provides:
 
-- Discover candidate Pi processes at pane granularity and report partial failures.
-- Resolve a target identity and associated conversation evidence.
-- Observe current output and report the actual guarantees of its status source.
-- Submit exact ordinary input to a revalidated target and report established success/failure boundaries.
-- Interrupt its current turn and discard pending steering, with verified ordering and outcome reporting.
+- Its current session file, session ID, leaf, and branch through the host's read-only session-manager context.
+- Structured message/thinking/tool updates, current activity, and available prompt state.
+- Ordinary Send and Stop through existing public extension controls.
+- Initial and reconnect snapshots sufficient to synchronize saved history and the current turn.
 
-The contract describes outcomes, not CLI syntax. Do not copy command examples from superseded drafts. Prefer nonintrusive observation; do not take over an existing tmux output pipe. Do not resize, attach interactively, clear history, or alter a user's pane merely to obtain a cleaner display.
+Start connection work from `session_start`, not the extension factory. Clean up idempotently on `session_shutdown`. If RAI is absent, Pi must still start and work normally; reconnect observation when the service returns. Extension reload/replacement requires fresh endpoint association.
 
-A backend may provide richer status than another. Present capability differences explicitly rather than synthesizing unsupported parity. Both backends must still pass the core discovery, history association, readable conversation, submission, and Stop gates for the stated first-version scope.
+Herdr/tmux integration is limited to existing labels, pane/ownership context, and discovery of nonparticipating sessions. Use supported installed interfaces; do not infer identity from directory or recency. Do not capture/scrape terminal output, inject keys, take over an output pipe, or alter the user's pane. Nested multiplexers and label mapping need end-to-end validation under both backends.
 
 ### 7.2 Identity and target changes
 
 Maintain a distinction between:
 
-- **Live target:** backend instance/socket, pane, and evidence identifying the current Pi process rather than a recycled pane or an unrelated foreground program.
-- **Conversation:** the current saved session file and selected branch/leaf, with evidence linking them to that live target.
-- **Browser selection:** an opaque service-issued reference to the verified target/association, never a free-form path or shell command.
+- **Live target:** the connected extension instance inside the existing Pi. Multiplexer labels and pane IDs provide context, not the direct recipient.
+- **Conversation:** the session ID/file and current branch/position reported by that host.
+- **Browser selection:** an opaque service reference to that endpoint and conversation association, never an arbitrary path, pane label, or command.
 
-Display names, directories, and file recency are not identities. Revalidate the selected target before applying input or Stop. A stale browser association must fail visibly rather than retarget to a newly discovered process or conversation. The feasibility work must establish what protects the interval between validation and input; a preflight check alone does not prove race-free targeting.
+Use Pi's existing stale-context checks for runtime replacement rather than duplicate them. Reconnect/reload must reestablish the endpoint association; never reuse a browser selection solely because a label matches. Session switch, fork, and intentional tree navigation invalidate the old conversation association. Normal output advances the leaf too, so do not freeze an exact leaf ID for an entire run.
 
-When herdr and tmux views overlap, do not list the same Pi twice if authoritative process/ownership evidence can deduplicate it. If ownership or identity is ambiguous, expose the limitation and do not choose a send target by guesswork.
+Same-file navigation during asynchronous input processing remains an implementation question: the current Send API does not expose a condition checked throughout processing. Verify recipient/branch behavior in the bridge slice and resolve that specific issue before claiming stale-conversation protection. Do not hide it with label matching, a preflight check alone, or a lock held until the conversational response finishes.
+
+When herdr and tmux views overlap, associate the extension with authoritative ownership context rather than listing it twice or choosing by directory. Ambiguous/unavailable associations stay visible and cannot become guessed control targets.
 
 ### 7.3 Read-only history
 
-Read existing files as data; do not invoke helpers that may migrate, repair, or append to a live session. Resolve paths server-side from verified identity evidence rather than accepting arbitrary browser file paths.
+Use the extension host's read-only state or read existing JSONL bytes as data, with the current file/branch association supplied by the host. Do not accept arbitrary browser paths or call helpers that migrate, repair, or append to a live session (`SessionManager.open` and `loadEntriesFromFile` are unsuitable).
 
-Handle concurrent append: consume complete records, wait for an incomplete trailing record, and report malformed completed records or unsupported formats. Recheck associations on session switch/fork/branch changes. Select the appropriate ancestry from Pi's entry graph, not every record in file order. Keep retained completed content accessible across compaction without inventing content that is no longer available.
+Walk `parentId` ancestry, not a branch summary's `fromId`, and key records by session plus entry ID because forks may retain IDs. Model-context projections are not complete history: they may omit summarized entries or apply context edits. Retain original completed content across compaction where stored; already-truncated output cannot be reconstructed.
 
-The parser/index can be in memory and rebuilt. It should support paging long histories without sending the entire session to the browser. Do not persist a parallel copy or write repair results into the source file. Validate with representative session fixtures before depending on installed library internals.
+For file reads, consume LF-complete records, wait for an incomplete tail, and report malformed completed records/unsupported formats. Page by bounded entries/bytes, with full retained result content available on expansion. Recheck the association on navigation and synchronize the history cutoff with ongoing output (§4.2). An in-memory index is sufficient; never maintain another permanent archive or modify source files.
 
 ### 7.4 Web boundary and lifecycle
 
 The web layer carries bounded history pages, ongoing observations, source health, and explicit Send/Stop results. Stack-native HTTP requests and live updates are sufficient; exact endpoints and polling/streaming choices follow the stack decision.
 
-Watch only what is needed: lightweight discovery for the list and detailed history/output observation for the selected session. Start with snapshots rather than inventing a raw-PTY pipeline. Stop observation work when it is no longer needed. Stopping RAI must only stop RAI-owned work, never Pi or its multiplexer.
+Maintain lightweight endpoint/session state for the list and detailed observations for the selected conversation. Extension event handlers must not block Pi on a slow browser or service: bound current-output buffering and resynchronize after a gap. Browser/service loss stops delivery, not Pi work.
 
-The request handler orders RAI-originated Send/Stop operations for each target, gives Stop priority over further sends, and does not replay either operation following an uncertain failure. It does not claim a durable deduplication guarantee. Unexpected adapter/parser failures should be visible operational errors, not successful empty results.
+After service restart, reconnect each extension and obtain a fresh combined history/current-turn snapshot. Never maintain a command outbox or replay Send/Stop. Report dispatch separately from acceptance; a transport request ID does not create a Pi acceptance receipt. Unexpected bridge/parser failures are visible errors, not successful empty results. Stopping RAI stops only RAI-owned work, never Pi or its multiplexer.
 
 ## 8. Deployment and security
 
 Run one service on the same host as the multiplexers, under the user permitted to inspect those sessions. No Pi process spawning or session ownership transfer is part of startup. Existing agents keep running when the service stops.
+
+Install the extension using Pi's supported global/project extension mechanism. It can load into future sessions normally; existing sessions require an explicit supported load/reload. Service startup does not install or inject it into existing Pi processes. The local socket must be accessible only to the owning user.
 
 Provide a standard configuration file with a listening address and port. The conservative default is loopback; the operator explicitly chooses a LAN/Tailscale listening address for tablet access. Exact file location/schema and packaging follow stack selection. Do not add configuration for every implementation detail.
 
@@ -287,67 +285,63 @@ No login or custom TLS is required by the trusted-network product assumption. Ne
 - Restrict exposure through the operator's LAN/Tailscale/firewall configuration; no public binding is implied safe.
 - Validate permitted Host/Origin values and apply framework-appropriate CSRF protection to state-changing requests. Reject cross-origin WebSocket handshakes if used. No permissive cross-origin access and no GET endpoints that submit input or invoke Stop.
 - Never interpolate user messages, paths, or labels into shell commands. Use literal argument/input mechanisms after verifying backend behavior.
-- Treat conversation Markdown, tool output, and terminal text as untrusted display data. Escape/sanitize rendered content; do not execute terminal controls or arbitrary HTML. Avoid automatically loading remote images/resources from history.
+- Treat conversation Markdown and tool output as untrusted display data. Escape/sanitize rendered content; do not execute terminal controls or arbitrary HTML. Avoid automatically loading remote images/resources from history.
 - Do not log full conversations or submitted text by default. Ordinary operational logs can identify the failed source/operation without creating another transcript.
 
 Browser-origin protections are not authentication and do not protect against an untrusted LAN client. If the network assumption changes, revisit the security model before exposure.
 
 ## 9. Stack decision
 
-Do not select a language based on an imagined streaming API. First prove the multiplexer and history contracts with the smallest disposable harness using actual supported interfaces.
+The in-Pi extension uses TypeScript and Node built-ins available in its host. Choose one independent web-service stack before implementing the bridge service; a new Pi API or another broad feasibility phase is not a prerequisite.
 
-After the gates, choose a single stack capable of:
+Choose a single stack capable of:
 
 - A responsive tablet layout and accessible composer.
 - Safe local process/socket interaction and read-only JSONL handling.
 - Bounded history loading and modest live updates.
 - Clear disconnect, submission, and Stop state handling and simple Linux/macOS deployment.
 
-Elixir/Phoenix LiveView and Go remain candidates. Compare one concrete minimal implementation shape for each against the proven integration requirements. Do not combine both or add a separate frontend service without a demonstrated need. Record the selected stack and resulting module/wire boundaries as a revision to this design, not as an assumed integration guarantee.
+Elixir/Phoenix LiveView and Go remain candidates for the service. Choose for this concrete local-socket, history-paging, browser-update workload and deployment needs. Do not combine both or add a separate frontend service without a demonstrated need. Record the choice and concrete module/wire boundaries as a revision to this design.
 
-## 10. Feasibility and verification plan
+## 10. Implementation validation
 
-### 10.1 Experiment boundary
+### 10.1 Test boundary
 
-Before running live tests, obtain explicit authorization for disposable test Pi sessions, their multiplexers, input payloads, and cleanup. Use test directories and throwaway drafts. Do not inject text into the coordinator, existing worker sessions, or production conversations. Reading documentation and implementing fixture-based tests do not require interacting with live agents.
+Build the extension bridge as the first implementation slice, not a new API or a separate research framework. This design is documentation, not authorization to install/reload it into existing agents or run live tests.
 
-First inspect the installed supported interfaces. Then use a minimal harness that records observed behavior and failures; no production dashboard or elaborate evidence system is needed. Record conclusions and resulting decisions in repository Markdown.
+Obtain explicit authorization for disposable Pi sessions, multiplexer instances, input payloads, and exact cleanup paths before live validation. Use repo-local `.rai-investigation/` directories and throwaway conversations, never existing coordinator/worker panes or `/tmp`. Fixture tests can be developed independently.
 
-### 10.2 Gates and decisions
+### 10.2 Bridge validation
 
-| Gate | Minimum experiment / pass condition | Decision if it fails |
-| --- | --- | --- |
-| Discovery and identity | Discover Pi panes in both backends; distinguish multiple sessions in one directory, multiple windows/panes, replaced/exited processes, and overlapping multiplexer visibility. Establish authoritative current file/branch association through session switch, fork, and branch navigation. | Revisit the selected integration or required coverage. Never substitute recency/path guessing. |
-| Session labels and recognition | Retrieve agent-assigned labels in both herdr and tmux, distinguish same-name/unnamed panes, and retain selection through renames. With representative labels, verify the user can recognize the intended coordinator or worker without decoding backend IDs. Confirm which label field each backend exposes; a Pi conversation name is not required. | Fix the adapter if labels are missing or mapped incorrectly. If existing labels prove unhelpful, discuss an agent-side naming adjustment; no Pi conversation naming or instruction change is assumed necessary. Do not add generated names or a separate alias system to RAI. |
-| Historical catch-up | Retrieve completed messages and tool results after they leave scrollback; traverse only the selected branch; handle compaction, long results, concurrent append, partial trailing records, and unavailable history without writing to the source. | Revisit history integration; terminal capture alone does not pass. |
-| Conversation with ongoing output | Observe streaming text and tool output under redraws, wrapping, and resizing without disturbing the pane or taking over an existing output pipe. Demonstrate a readable single conversation with structured live content or an inline current view; establish how provisional content relates to saved messages without guessed merging. | Revisit observation/integration if this cannot be presented coherently; a separate history/terminal panel is not the agreed default UX. |
-| Exact input | While idle and busy, send literal single/multiline messages, Unicode and special characters, with/without a disposable desktop draft. Check Pi receives exactly the intended content and uses ordinary steering. Include unsupported prompt/dialog states. | Stop the input path; revisit the integration with the user rather than adding guessed key recipes. |
-| Stop and steering discard | Stop an active turn with multiple queued steering messages; verify no pending steering starts another turn. Also test idle-with-queue, a Send already in progress, partial input, repeated taps, interruption/clearance partial failure, and connection loss. Pi remains alive; both interruption and queue discard must work in both backends. | Revisit the control integration. Conversational stop, process termination, and abort-with-queue-retained do not meet the requirement. |
-| Stale target | Switch conversations and replace/exit Pi between browser selection and Send/Stop; investigate the validation-to-control race using only disposable targets. Neither action may reach the wrong process/editor. | No production control until the target guarantee is established or the integration requirement changes. |
-| Acknowledgment | Test failures before input, during a multi-step operation, and after input but before the browser response. Establish which successes/failures are actually observable. | Narrow success wording and use outcome-unknown states. If safe non-replay behavior is impossible, revisit submission integration. |
-| Status | Verify herdr state semantics and any tmux/Pi evidence. Demonstrate unknown and stale states rather than deriving idle/completion from silence. | Use unknown plus current observations; confirm that the remaining visibility meets the workflow. |
-| Lifetime and recovery | Close browser, disconnect network, restart RAI, and rediscover the correct current session/history. Pi continues; neither Send nor Stop is replayed and no unverified target is restored. | Fix lifecycle/selection boundaries before implementation proceeds. |
+| Area | Validate during implementation |
+| --- | --- |
+| Participation and labels | Connect an extension-hosted Pi under both herdr and tmux; show existing labels, missing-extension sessions, duplicate/renamed labels, and nested ownership without duplicate endpoints. |
+| Conversation identity | Use host-reported session/file/branch state; check switch, fork, same-file navigation, reload/replacement, and stale selections, including navigation during input processing. Resolve the open navigation question in §7.2 before claiming safe targeting. |
+| Send | Exercise exact Unicode/whitespace/multiline/command-looking input while idle and busy, existing input extensions, desktop drafts, and unsupported manual-compaction states. Keep dispatch and acceptance feedback distinct. |
+| Stop | Verify the normal Pi interruption path, queued-steering discard, retained RAI draft, repeated taps, and continued Pi process lifetime. |
+| History | Retrieve retained ancestry across branches/compaction; page long results; handle malformed records, incomplete append, UTF-8 boundaries, unavailable/replaced files, and unknown content without source mutation. |
+| Ongoing output | Render structured response/thinking/tool updates; replace provisional turns using persisted IDs and branch snapshots. Test mid-turn join, interruption/errors, reconnect gaps, and later-handler transformations without duplicated messages. |
+| State and recovery | Use current Pi activity/settlement/prompt evidence; distinguish unknown/stale. Restart the service, disconnect browser/socket, and slow a reader: Pi keeps working, observations resynchronize, and no controls replay. |
 
-A failed gate triggers an explicit decision with the user. Neither a required extension/launcher nor terminal-only history may be introduced silently. Passing on one multiplexer does not establish support for the other.
+These checks validate implementation behavior; no live outcome has yet been demonstrated. If a concrete integration defect blocks a requirement, bring that issue to the user rather than add a terminal fallback, private-API workaround, or new framework.
 
 ### 10.3 Implementation acceptance
 
-Once integration contracts and stack are selected, cover:
+As the bridge and UI are implemented, cover:
 
 - Adapter behavior against disposable sessions on both Linux and macOS; keep untested platforms explicitly provisional.
 - Fixture tests for history branch selection, compaction, tool errors, partial append, malformed records, and long result paging.
-- Request tests for target invalidation, literal input, Send/Stop ordering, interruption plus steering discard, non-replay after uncertain failures, and rejection of state-changing requests from untrusted browser origins.
+- Request tests for target invalidation, exact direct input, normal Pi interruption/steering discard, non-replay after uncertain failures, and rejection of state-changing requests from untrusted browser origins.
 - Browser tests for session labels/renames, page-local per-conversation draft restoration, Clear/Close, draft loss on page reload, double taps, composer collapse/keyboard dismissal after Send, footer feedback lifetime, disconnected Send/Stop, retained unknown-outcome text, and readable ongoing output within the conversation.
 - Independent individual/bulk tool and thinking expansion, including entries loaded later, and scroll-anchor stability when loading older content, appending new messages, or expanding/collapsing output.
 - Real tablet portrait/landscape and software-keyboard checks, plus keyboard/screen-reader navigation and malicious-content rendering tests.
 
 ## 11. Delivery sequence
 
-1. Review this conversation-first UX and the Send/Stop behavior.
-2. Authorize and run the bounded feasibility work; record actual contracts and remaining limitations.
-3. Select the stack and replace provisional integration details with evidence-backed decisions.
-4. Build the session list and read-only conversation, including ongoing output; validate tablet catch-up and menu navigation.
-5. Add exact, revalidated Send and Stop with their outcome feedback only after their gates pass.
-6. Validate recovery, security boundaries, and tablet interaction before regular use.
+1. Choose the independent web-service stack and concrete local bridge message boundary.
+2. Implement the Pi extension bridge using the existing API: connection/lifecycle, host identity, structured observations, Send, and Stop. Validate it with separately authorized disposable sessions before building the full UI; no new Pi API is planned.
+3. Implement read-only history paging and provisional-to-persisted conversation replacement against that bridge.
+4. Build the session menu, conversation view, expansion controls, composer/drafts, and footer feedback.
+5. Validate recovery, security boundaries, both multiplexer environments, and tablet interaction before regular use.
 
-The design is ready to guide feasibility and UX review. It is not a claim that arbitrary already-running Pi sessions can yet be identified and controlled safely through both multiplexers.
+The integration direction is selected. Proceed in small implementation slices with focused validation; Linux/macOS support and end-to-end behavior remain unverified until tested.
