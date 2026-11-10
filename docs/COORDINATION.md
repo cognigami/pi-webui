@@ -2,8 +2,6 @@
 
 Reusable guidance for planning, delegating, investigating, and reviewing work in this repository. Project instructions, the selected design, and the operator's actual authorization remain authoritative. A plan or review approval is not permission to execute everything it describes.
 
-The integration direction is selected: follow [design §11](design.md#11-delivery-sequence) for bridge-first implementation, within the operator's actual authorization. The [investigation findings](investigation-findings.md) provide background evidence; the [investigation plan](investigation-plan.md) is historical, not the current execution sequence. The [product scope](design-notes.md) remains authoritative.
-
 ## 1. Scale coordination to the work
 
 The coordinator owns sequencing, task boundaries, integration, review assignments, and decisions returned to the operator. It must understand and synthesize the evidence, not simply relay messages.
@@ -79,4 +77,4 @@ Ask the operator before contacting agents in another project unless that communi
 
 A plan should contain scope/exclusions, unresolved choices, ordered verifiable slices, dependencies, ownership/write boundaries, appropriate validation/review, and a coordinator start brief stating what is actually authorized. Stop dependent work when a prerequisite fails; return a specific decision rather than silently weakening the contract.
 
-For the current handoff, use design §§10–11: select the independent web-service stack and concrete bridge boundary, then implement the Pi extension bridge using the existing API before the full UI. Validate it with separately authorized disposable sessions, then add history reconciliation and the browser interface. Do not restart I1 or require another broad feasibility phase. Keep focused validation results and decisions in repository Markdown, review meaningful slices before downstream reliance, and report untested backends/platforms explicitly. Planning does not itself authorize implementation, live tests, or installation/reload into existing agents.
+Each plan should link to this document and own its task-specific start brief, sequence, status, and authorization boundaries. Keep current-task instructions out of this reusable guide.
