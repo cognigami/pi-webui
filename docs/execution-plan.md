@@ -204,6 +204,12 @@ The follow-up uses an explicit light palette with readable foregrounds, a light 
 
 A CSS-only worker in coordinator-created `w12:tG` / `w12:pG` handed back its stylesheet and performed read-only review of the coordinator's other changes. It found the hidden chooser-error case; the fix and failure/recovery fixture passed focused re-review. The coordinator inspected the stylesheet. Final build/lint/test passed: race-enabled Go packages and 38 Node checks. No real-browser rendering/geometry tool was available, so this is not visual/tablet acceptance. That worker tab was closed by returned ID. The operator's existing RAI service was not stopped/restarted; the rebuilt binary's embedded changes require restarting only RAI and refreshing the browser. Participating Pi processes can remain running and reconnect normally.
 
+### Deferred follow-up: SSH tunnel access
+
+The operator reports **Host not permitted** when accessing RAI through an SSH tunnel; currently they must remote-view the host machine to use the page. Record this as an unresolved access defect, not a requirement to use remote desktop. No tunnel/configuration/security changes were requested for this turn.
+
+Likely cause: HTTP forwarding preserves the browser-facing Host, while RAI currently allowlists the listener IP/localhost at the listener port. A different local tunnel port or hostname will not match. The exact browser URL, local/remote forwarding endpoints and RAI listen address have not yet been checked; confirm them when addressing this. Support the intended tunneled browser authority while preserving Host/Origin/CSRF protections, rather than allowing arbitrary hosts or disabling the checks.
+
 ### First live phase — completed within the approved bounds
 
 The operator approved the disposable live-test phase, then explicitly disabled the sandbox after its Unix-socket connect denial. The denied first Send had no dispatch side effect; the same request was retried after that guidance. The first phase stayed within 20 minutes per backend (Herdr targets started 2026-11-10 23:57 UTC; tmux targets 2026-11-11 00:03 UTC). Testing used macOS x86_64, installed Pi 1.5.2, Herdr client/server 0.9.3 and tmux 3.7b, with the configured model `openai-codex/gpt-6.1-sol`. All model tools except the benign fixture wait tool were disabled. The scope below records the approved envelope, not completion of every check it permitted. Broader phases still require agreement.
