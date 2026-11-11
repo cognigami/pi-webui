@@ -10,12 +10,10 @@
 <body>
 <main id="app">
 <header>
-<button id="sessions-button" aria-controls="sessions" aria-expanded="false">☰ Sessions</button>
+<button id="sessions-button" aria-label="Sessions" aria-controls="sessions" aria-expanded="false">☰</button>
 <div class="heading"><h1 id="recipient">Choose a session</h1><p id="activity">No session selected</p></div>
 <button id="view-button" aria-controls="view-menu" aria-expanded="false">View</button>
-<button id="details-button" aria-controls="details" aria-expanded="false">Details</button>
 </header>
-<section id="details" hidden aria-label="Session details"></section>
 <nav id="view-menu" hidden aria-label="Conversation view">
 <button data-bulk="tools:true">Expand all tools</button><button data-bulk="tools:false">Collapse all tools</button>
 <button data-bulk="thinking:true">Expand all thinking</button><button data-bulk="thinking:false">Collapse all thinking</button>
@@ -45,7 +43,6 @@
 <div class="dialog-heading"><h2 id="sessions-title">Sessions</h2><button id="sessions-close">Close</button></div>
 <p id="session-summary" role="status">Looking for connected sessions…</p>
 <div id="session-list"></div>
-<details id="discovery-details"><summary>Discovery details</summary><p id="discovery-health">Loading sessions…</p></details>
 </dialog>
 <div id="announcements" class="sr-only" aria-live="polite"></div>
 </main>

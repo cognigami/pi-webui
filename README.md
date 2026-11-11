@@ -34,12 +34,11 @@ Focused examples: `just test internal/history`, `just test internal/web`,
 ```
 
 Open **http://localhost:8484** (or **http://127.0.0.1:8484**). The light session
-sheet puts **Connected** sessions first, with a count and connection badge.
-Other discovered Pi sessions are folded under **Other Pi sessions**; that does
-not prove the extension is uninstalled, only that no RAI connection is active.
-The chooser is a light sheet without a dark veil, retaining native modal
-keyboard focus/Escape behavior. Discovery diagnostics are available separately
-rather than obscuring the usable sessions.
+sheet shows **only connected sessions**. There is no unreachable-session list,
+Discovery details, or top-right debug Details panel. The icon-only **☰** button
+opens the chooser (with an accessible Sessions label). Native modal keyboard
+focus/Escape behavior remains; lookup failures stay visible without diagnostic
+panels or stale unreachable choices.
 
 **The service does not install/reload into existing sessions.** For an operator-
 chosen **new** interactive Pi session, use its supported explicit extension load:
@@ -69,17 +68,36 @@ the service-owned socket.
 ### Configuration and tablet access
 
 `./bin/rai serve -config PATH` reads JSON with `address`, `port`, and optional
-absolute `socket`. See [loopback example](configs/example.json). Defaults are
-`127.0.0.1:8484` and the private socket above.
+absolute `socket`. The file path is explicit; there is no auto-loaded network
+configuration. Defaults are `127.0.0.1:8484` and the private bridge socket above.
 
-For tablet access, explicitly choose **the host's private LAN or Tailscale IP**,
-then browse to that exact IP and port on the tablet. For example:
+For tablet access:
 
-```json
-{"address":"100.90.1.2","port":8484}
-```
+1. Copy [configs/lan.example.json](configs/lan.example.json) to `configs/lan.json`.
+2. Edit **address** to this machine's actual private LAN IP; **port** is the HTTP
+   port you want. The example below is not an automatically detected address:
 
-That IP must belong to your host. Wildcard/public binding is refused. There is
+   ```json
+   {"address":"192.168.1.50","port":8484}
+   ```
+
+3. Stop only the current RAI service (Ctrl-C in its terminal), then run:
+
+   ```sh
+   ./bin/rai serve -config configs/lan.json
+   ```
+
+4. On the tablet, open `http://192.168.1.50:8484`, substituting that same actual
+   host IP/port. The tablet must be on a network that can reach the host and its
+   firewall must allow the chosen port. Use that LAN URL on the host too; the
+   service listens on one explicitly selected address, not every interface.
+
+A Tailscale host IP is also supported. The address must belong to your host;
+see [loopback example](configs/example.json) to revert to local-only access.
+Changing address/port does not require reloading Pi or changing the bridge
+socket. The extension reconnects when RAI restarts.
+
+Wildcard/public binding is refused. There is
 **no login or TLS**: expose only to a trusted LAN/Tailscale network and apply
 appropriate firewall controls. Origin/Host/CSRF checks are not authentication
 against another untrusted LAN client. A proxy/alternate hostname/HTTPS origin is
@@ -117,8 +135,10 @@ RAI never starts/stops Pi. Ctrl-C or SIGTERM stops only RAI-owned work.
   Escape compacts the editor without deleting the text.
 - Send preserves exact nonempty Unicode text and uses ordinary Pi steering,
   without reading/submitting/clearing the desktop draft. It collapses the
-  composer and dismisses the keyboard. Its honest result is **Submitted;
-  acceptance unconfirmed**, not an invented Sent/queued receipt.
+  composer and dismisses the keyboard. Normal dispatch clears the input quietly;
+  no Submitted/acceptance notice is added to the conversation. This does not
+  claim acceptance or queueing: the underlying API still returns no receipt.
+  While pending, the Send button says Sending….
 - Lost/failed Send leaves the text directly editable with an inline warning;
   another Send is an ordinary deliberate action, not a recovery workflow.
   There is no automatic control retry or replay. Send uncertainty

@@ -46,7 +46,7 @@ test("exact capture, double-tap prevention, and Stop independent of pending Send
   finishSend(view, "one", { status: "submitted_unconfirmed" });
   assert.equal(view.draft, "");
   assert.equal(view.pending, null);
-  assert.equal(view.sendFeedback.detail, "Submitted; acceptance unconfirmed");
+  assert.equal(view.sendFeedback, null);
   assert.equal("receipts" in view, false);
 });
 test("lost outcome leaves editable input and inline warning on original conversation, without a review step", () => {

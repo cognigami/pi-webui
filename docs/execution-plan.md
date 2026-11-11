@@ -224,6 +224,16 @@ Normal conversation filters administrative session records out entirely. View â†
 
 Read-only reviewer in coordinator-created `w12:tJ` / `w12:pJ` identified two concrete edge cases (deferred display:false visibility and unresolved Stop eligibility across later rejection); both received minimal fixes, fixtures and cleared focused re-review. Build/lint/test passed after those fixes, including race-enabled Go and Node model/DOM/rendering tests. No user Pi controls/reloads, live history reads or browser-rendering claims. Only an RAI restart/browser refresh is required for this UI/server slice; no extension change in this follow-up.
 
+### Operator cleanup: no debug panels or normal success notices; LAN instructions
+
+The operator removed the top-right Details debug panel, visible Sessions text next to the hamburger, unreachable Pi candidates and Discovery details. The chooser now contains only connected endpoints. Lookup failure is still explicit, but cached/unreachable entries are not offered as choices. The icon retains its accessible Sessions label. Technical discovery APIs remain internal/read-only; no control identity rules changed.
+
+Ordinary submission clears the input quietly. Sendingâ€¦ is confined to the pending Send button; no Submitted/acceptance-unconfirmed notice is rendered. The transport's lack of acceptance proof is unchanged, with actual rejection/unknown-delivery warnings and conservative independent Stop eligibility preserved. No success receipt or fake Sent event is created.
+
+Address/port were already explicit JSON configuration via `rai serve -config PATH`; added `configs/lan.example.json` and concrete copy/edit/start/tablet URL instructions in README. The sample IP is illustrative and must be replaced with a real host private LAN/Tailscale address. Loopback remains the default, wildcard/public binding is still rejected, and the trusted-network/no-login/no-TLS assumptions remain explicit. Changing HTTP address/port leaves Pi and its private bridge socket configuration alone.
+
+Build/lint/test passed, including 44 Node checks and race-enabled Go tests. This incremental UI deletion/configuration-guide change did not start/reload/control any user Pi session, alter network/firewall settings or claim actual tablet/LAN acceptance. An RAI-only restart loads the rebuilt UI; the operator chooses the LAN IP/configuration. SSH-tunnel authority support remains a separate unresolved follow-up below.
+
 ### Deferred follow-up: SSH tunnel access
 
 The operator reports **Host not permitted** when accessing RAI through an SSH tunnel; currently they must remote-view the host machine to use the page. Record this as an unresolved access defect, not a requirement to use remote desktop. No tunnel/configuration/security changes were requested for this turn.

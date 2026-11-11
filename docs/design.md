@@ -26,7 +26,7 @@ No session launcher, terminal keyboard emulator, generated summary, unread syste
 2. Choose a session.
 3. See its conversation near the newest content, with one compact real textarea and **Send** / **Stop** actions. The header names the selected conversation using its multiplexer label.
 4. Focus the textarea to expand it for multiline editing and the tablet keyboard. No second input-like button remains on screen. The conversation remains scrollable.
-5. Send a message. The composer collapses and the keyboard is dismissed; submission feedback appears in the footer. Pi receives the message as ordinary input or queues it as steering while working. Show **Steering queued** only when that state can actually be observed.
+5. Send a message. The composer collapses and the keyboard is dismissed; only actionable failure/uncertainty feedback appears in the footer; ordinary dispatch completes quietly. Pi receives the message as ordinary input or queues it as steering while working. Show **Steering queued** only when that state can actually be observed.
 6. To see another conversation, tap the top-left menu button. The session list opens over the conversation; choosing a session closes it.
 
 At any point, Stop interrupts the selected Pi turn and discards its queued steering messages. Closing the browser or losing connectivity does not stop Pi; reconnecting does not resend input.
@@ -39,7 +39,7 @@ The list is for running sessions, not a browser of archived conversations. If di
 
 ```text
 +----------------------------------------------------------------+
-| [☰ Sessions] coordinator · project-name Working [View] [Details] |
+| [☰] coordinator · project-name Working                  [View] |
 +----------------------------------------------------------------+
 | ... conversation history ...                                   |
 | User: ...                                                      |
@@ -49,7 +49,7 @@ The list is for running sessions, not a browser of archived conversations. If di
 |                                                                |
 | [New content below · Go to latest]                              |
 +----------------------------------------------------------------+
-| Submission feedback                                            |
+| Actionable failures only, when needed                           |
 | [Message… (one real textarea)]                                  |
 |                                                [Stop] [Send]  |
 +----------------------------------------------------------------+
@@ -78,20 +78,13 @@ RAI displays those labels consistently in the session list and conversation head
 
 Use a stable ordering by display label and keep it steady across activity updates. No special coordinator selection step, unread badges, or message counters. If a label changes, update the displayed name without changing the selected target or moving a draft to another session.
 
-The user does not have to understand multiplexers to choose a session. A details disclosure provides backend, pane identity, working directory, and history availability for disambiguation and troubleshooting. Do not use directory or display name as the send target.
+The user does not have to understand multiplexers to choose a session. Existing names and brief context distinguish duplicate labels. The top-right Details debug panel and discovery diagnostics were explicitly removed by the operator; do not expose raw endpoint/session metadata in the normal UI. Do not use directory or display name as the send target.
 
 The human-readable labels should make the coordinator and other agents recognizable in either multiplexer. A coordinator badge is optional when verified metadata already supplies the role; lack of role metadata does not add a warning or require a new designation workflow.
 
-Discovery distinguishes:
+The browser chooser shows only currently connected RAI endpoints, not unreachable/unintegrated Pi candidates. Loading, no connected sessions, and lookup failure remain distinct. On lookup failure, show the error rather than stale unreachable choices. The backend can retain diagnostic discovery coverage internally/API-side; there is no Discovery details panel or unconnected-session section in the browser.
 
-- **Loading:** enumeration has not completed.
-- **No Pi sessions found:** backend discovery completed successfully and found no running Pi candidates, not merely no connected extensions.
-- **Partially available:** one backend failed or could not be inspected; show which coverage is missing.
-- **Unavailable:** discovery failed; do not present an empty list as authoritative.
-
-A Pi session without the RAI extension is listed as **Integration unavailable** where backend discovery can identify it. It must be explicitly loaded/reloaded through Pi's supported mechanism before direct interaction is available; copying an extension file does not attach it to an already-running session. Partial backend visibility remains explicit. No terminal-input fallback.
-
-A selected session that disappears or loses its extension connection remains visible as unavailable until it can be reassociated or the user selects another. Never silently redirect the conversation or composer to a different session.
+A selected conversation that loses its connection keeps its cached content and an unavailable indication until safely reassociated or explicitly changed, but is not offered as a reachable choice. Never silently redirect the conversation/composer. Extension loading remains explicit; no terminal-input fallback.
 
 ## 4. Conversation
 
@@ -173,17 +166,17 @@ This API returns void, not an acceptance promise. Input processing may continue 
 
 ### 5.3 Submission feedback
 
-Show brief feedback in the compact conversation footer, independently of the collapsed composer. **Sending** means the request is in progress; **Sent** or **Steering queued** requires evidence of the corresponding Pi state. With the current void Send API, use **Submitted; acceptance unconfirmed** after the extension reports dispatch was attempted, not **Sent** or **Steering queued**. The distinctions below define failure handling, not extra steps in the user journey:
+Show only actionable failure/uncertainty feedback in the compact footer. While pending, the Send button reads **Sending…**; ordinary dispatch clears the input quietly without a Submitted/acceptance notice or invented Sent/queued confirmation. The underlying void API still provides no acceptance proof. The transport distinctions below define failure handling, not extra UI steps:
 
 | State | UI and behavior |
 | --- | --- |
-| Sending | Collapse the editor and dismiss the keyboard. Keep the submitted text temporarily read-only and show pending feedback in the footer. Prevent double taps from submitting twice. |
-| Submitted; acceptance unconfirmed | The extension reports dispatch was attempted. Clear the input without archiving a receipt. The void API return does not prove acceptance, queueing, or execution. |
+| Sending | Collapse the editor and dismiss the keyboard. Keep the submitted text temporarily read-only and show Sending… on the disabled Send button. Prevent double taps from submitting twice. |
+| Submitted; acceptance unconfirmed | The extension reports dispatch was attempted. Clear the input quietly; no visible success notice or archived receipt. The void API return does not prove acceptance, queueing, or execution. |
 | Sent / Steering queued | Show only when the corresponding acceptance or steering-queue state is reliably associated with this submission. The ordinary history entry is authoritative for saved content; do not add a second permanent user message. |
 | Not sent | Use only when failure is known to precede any input side effect. Preserve the text for an explicit retry. |
 | Outcome unknown | Some input may have reached Pi, or the browser lost the response. Retain the text/recipient and say “Check the conversation or terminal before sending again.” Never retry automatically. |
 
-Keep one latest inline Send status per conversation, not a receipt collection. Starting another deliberate Send replaces that feedback; Stop feedback is independent. One per-view Boolean preserves Stop eligibility if an earlier dispatch remains unconfirmed even when a later Send is rejected; no earlier message text/receipt archive is kept. A rejected/unknown result keeps text editable in the ordinary input with a warning. It does not require review, dismissal, reuse or unlocking before another manual Send. The operator explicitly removed that workflow. There is no recovery UI, copied receipt text or hidden receipt archive.
+Keep at most one latest inline Send failure/uncertainty per conversation, not normal success feedback or a receipt collection. Starting another deliberate Send replaces that feedback; Stop feedback is independent. One per-view Boolean preserves Stop eligibility if an earlier dispatch remains unconfirmed even when a later Send is rejected; no earlier message text/receipt archive is kept. A rejected/unknown result keeps text editable in the ordinary input with a warning. It does not require review, dismissal, reuse or unlocking before another manual Send. The operator explicitly removed that workflow. There is no recovery UI, copied receipt text or hidden receipt archive.
 
 Refresh target identity/history/activity after reconnect before enabling Send. Never infer acceptance from matching text or retry automatically. There is no durable-delivery or exactly-once promise across restarts. Pending requests/results stay on their captured original conversation.
 
@@ -269,7 +262,7 @@ The Go service embeds HTML/CSS/JavaScript and serves the browser and JSON bounda
 
 `POST /control` carries the exact captured target/request/text once through the existing bridge. It requires an allowlisted Host, an Origin matching that request Host, and current per-start `X-RAI-CSRF` secret from `/api/bootstrap`; all routes reject foreign origins/cross-site requests and use no-store, with no permissive CORS. Token/origin rejection is not authentication against a trusted-network peer. No control GET or automatic POST retry. CSP permits only self-hosted scripts/styles/connections, no active history HTML or automatic images/resources.
 
-The page stores ordinary input, per-type disclosure preferences and one latest dispatch status by session+association in memory only. A reconnect can rebind only through the same opaque association/session plus host PID evidence, followed by a fresh combined observation; replacement runtimes without that association require an explicit selection. Same-endpoint intentional navigation loads a new view without transferring old input. There is no Review/reuse dialog or receipt archive. Uncertain Send and Stop feedback coexist. Pure state logic lives in `model.js`, DOM/network coordination in `app.js`; DOM tests use development-only linkedom, not a separate production frontend stack.
+The page stores ordinary input, per-type disclosure preferences and one latest failure/uncertainty notice by session+association in memory only. A reconnect can rebind only through the same opaque association/session plus host PID evidence, followed by a fresh combined observation; replacement runtimes without that association require an explicit selection. Same-endpoint intentional navigation loads a new view without transferring old input. There is no Review/reuse dialog or receipt archive. Uncertain Send and Stop feedback coexist. Pure state logic lives in `model.js`, DOM/network coordination in `app.js`; DOM tests use development-only linkedom, not a separate production frontend stack.
 
 The private Unix socket carries LF-delimited UTF-8 JSON, protocol version 1, maximum 1 MiB per frame. An extension first sends `snapshot` and thereafter replaces its observation with monotonically increasing sequence numbers. Each reconnect creates a fresh UUID `endpointId`; intentional tree navigation creates a fresh `associationId`, normal leaf advancement does not. A snapshot includes session ID/file, current leaf, completed cutoff, bounded provisional message/tools, persisted IDs at turn end, observed activity/prompt/manual-compaction state, observation timestamp, and explicit gap/limitation flags. Branch samples contain at most eight IDs/parents, not a competing history reader. `historyReady` and `turnOpen` make holdback explicit; legacy bridges without historyReady do not silently expose a guessed cutoff. Turn start opens a provisional turn, first assistant message_start captures the already-persisted preceding user/system leaf, and assistant/tool message_end never advances the cutoff. Confirmed turn_end atomically clears provisional content with persisted IDs and cutoff. Authoritative settled/idle reads with no open turn include later committed turn_end/agent_before_settle proposals; elapsed time is not persistence evidence. Before-tree invalidation clears readiness/cutoff/provisional content, not only controls. An extension loaded midturn admits missing pre-load state until an authoritative boundary. For a setup-only session, Pi has an in-memory leaf and planned filename but does not flush until a user/assistant message. The extension uses public getEntries to establish that conversation-start fact, latching true under the append-only session contract; metadata-only leaves are not reported as persisted cutoffs. The raw reader accepts a missing file as empty only for an authoritative nil cutoff, no paging cursor and no prior source observation. Saved/unavailable or previously observed missing sources remain errors. No new persistence flag, file reader in the extension, or synthetic transcript is introduced. Synthetic/source reviews cover these rules; full real-Pi reconciliation remains unaccepted.
 

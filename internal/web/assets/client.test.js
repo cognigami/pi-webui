@@ -82,7 +82,7 @@ const response = (value) =>
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
-test("session chooser foregrounds connected sessions with native modal focus; other sessions stay folded", {
+test("chooser shows only reachable sessions, preserves focus, and has no diagnostics", {
   timeout: 12000,
 }, async (t) => {
   const { document: doc, window } = fixtureDOM();
@@ -93,7 +93,9 @@ test("session chooser foregrounds connected sessions with native modal focus; ot
     integration: "unavailable",
     panes: [],
   };
-  let rows = [other, row("z")],
+  const disconnected = row("offline");
+  disconnected.observation.connected = false;
+  let rows = [other, disconnected, row("z")],
     app;
   const original = globalThis.fetch;
   globalThis.fetch = async (url) => {
@@ -109,43 +111,41 @@ test("session chooser foregrounds connected sessions with native modal focus; ot
   app = await boot(doc);
   assert.equal($("sessions").dataset.modal, "true");
   assert.match($("session-summary").textContent, /1 connected session/);
+  assert.equal($("session-list").querySelectorAll(".session").length, 1);
+  const button = $("session-list").querySelector(".session");
+  assert.equal(button.querySelector("strong").textContent, "Session z");
+  assert.equal($("sessions-button").textContent, "☰");
+  assert.equal($("sessions-button").getAttribute("aria-label"), "Sessions");
+  for (const id of [
+    "details-button",
+    "details",
+    "discovery-details",
+    "discovery-health",
+  ])
+    assert.equal($(id), null);
   assert.equal(
-    $("session-list").querySelector(".session strong").textContent,
-    "Session z",
-  );
-  assert.equal(
-    $("session-list").querySelector(".session-status").dataset.state,
-    "connected",
-  );
-  const others = $("session-list").querySelector(".unavailable-sessions");
-  assert.equal(others.open, false);
-  assert.equal($("discovery-details").hasAttribute("open"), false);
-  assert.equal(
-    $("session-list").textContent.includes("explicit extension load required"),
+    $("session-list").textContent.includes("AAA unrelated Pi"),
     false,
   );
-  others.open = true;
-  const summary = others.querySelector("summary");
-  summary.focus();
-  rows = [other, row("z"), row("a")];
+  button.focus();
+  rows = [other, disconnected, row("z"), row("a")];
   doc.dispatchEvent(new window.Event("visibilitychange"));
   await until(() =>
     $("session-summary").textContent.includes("2 connected sessions"),
   );
-  const refreshed = $("session-list").querySelector(".unavailable-sessions");
-  assert.equal(refreshed.open, true);
-  assert.equal(doc.activeElement, refreshed.querySelector("summary"));
-  rows = [other];
+  assert.equal(doc.activeElement.dataset.sessionKey, "z");
+  rows = [other, disconnected];
   doc.dispatchEvent(new window.Event("visibilitychange"));
   await until(() =>
-    $("session-summary").textContent.includes("No sessions connected"),
+    $("session-summary").textContent.includes("No connected sessions"),
   );
+  assert.equal($("session-list").querySelectorAll(".session").length, 0);
   assert.match(
     $("session-list").querySelector(".empty-state").textContent,
     /socket path and terminal notices/,
   );
 });
-test("chooser reports bootstrap failure and stale list inside the sheet, then clears on recovery", {
+test("chooser reports lookup failure without showing unreachable cached sessions, then recovers", {
   timeout: 12000,
 }, async (t) => {
   const { document: doc, window } = fixtureDOM();
@@ -167,10 +167,10 @@ test("chooser reports bootstrap failure and stale list inside the sheet, then cl
   app = await boot(doc);
   assert.match(
     $("session-summary").textContent,
-    /Could not refresh.*fixture offline/,
+    /Could not load.*fixture offline/,
   );
   assert.equal($("session-list").querySelector(".empty-state"), null);
-  assert.match($("discovery-health").textContent, /fixture offline/);
+  assert.equal($("discovery-health"), null);
   failing = false;
   doc.dispatchEvent(new window.Event("visibilitychange"));
   await until(() =>
@@ -179,12 +179,9 @@ test("chooser reports bootstrap failure and stale list inside the sheet, then cl
   failing = true;
   doc.dispatchEvent(new window.Event("visibilitychange"));
   await until(() =>
-    $("session-summary").textContent.includes("last known sessions"),
+    $("session-summary").textContent.includes("Could not load"),
   );
-  assert.equal(
-    $("session-list").querySelector(".session-status").textContent,
-    "Connection unverified",
-  );
+  assert.equal($("session-list").querySelectorAll(".session").length, 0);
   failing = false;
   doc.dispatchEvent(new window.Event("visibilitychange"));
   await until(() =>
@@ -250,6 +247,54 @@ test("untouched conversation has one ordinary editor and no draft-management UI"
   $("draft").value = "";
   $("draft").dispatchEvent(new window.Event("input"));
   assert.equal($("send-button").disabled, true);
+});
+test("ordinary submission clears input without adding success feedback to the conversation", {
+  timeout: 10000,
+}, async (t) => {
+  const { document: doc, window } = fixtureDOM();
+  const $ = (id) => doc.getElementById(id);
+  const target = row("success");
+  let app,
+    calls = 0;
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    if (url === "/api/bootstrap") return response({ csrf: "a".repeat(64) });
+    if (url === "/sessions")
+      return response({ rows: [target], failures: {}, coverage: [] });
+    if (String(url).startsWith("/conversation/"))
+      return response({
+        observation: target.observation,
+        history: { entries: [], before: "" },
+      });
+    if (url === "/control") {
+      calls++;
+      const req = JSON.parse(options.body);
+      return response({
+        type: "result",
+        version: 1,
+        requestId: req.requestId,
+        status: "submitted_unconfirmed",
+      });
+    }
+    throw Error("Unexpected fixture request " + url);
+  };
+  t.after(() => {
+    app?.stopPolling();
+    globalThis.fetch = original;
+  });
+  app = await boot(doc);
+  app.select(target);
+  const view = app.views.get(conversationKey(target.observation.snapshot));
+  await until(() => view.verified);
+  $("draft").value = "hello";
+  $("draft").dispatchEvent(new window.Event("input"));
+  $("send-button").click();
+  await until(() => view.pending === null);
+  assert.equal(calls, 1);
+  assert.equal($("draft").value, "");
+  assert.equal($("feedback").textContent, "");
+  assert.equal($("send-button").textContent, "Send");
+  assert.equal($("messages").textContent.includes("Submitted"), false);
 });
 test("normal conversation hides internal session records; View opt-in reveals compact retained details", {
   timeout: 10000,

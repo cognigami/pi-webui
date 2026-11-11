@@ -251,7 +251,6 @@ article.tool-record {
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
-#details,
 #view-menu {
   flex: none;
   padding: 0.85rem 1.25rem;
@@ -259,12 +258,6 @@ article.tool-record {
   border-bottom: 1px solid var(--border);
   max-height: 25vh;
   overflow: auto;
-}
-#details {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.85rem;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
 }
 #view-menu {
   display: flex;
@@ -389,33 +382,15 @@ dialog::backdrop {
 #sessions::backdrop {
   background: transparent;
 }
-#discovery-health,
 #session-summary {
   font-size: 0.9rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
-#discovery-health {
-  color: var(--muted);
-  white-space: pre-line;
-  margin: 0.75rem 0;
-}
 #session-summary {
   color: #263750;
   font-weight: 600;
   margin: 1rem 0;
-}
-.session-section {
-  margin-top: 1rem;
-}
-.session-section > h2,
-.session-section > h3 {
-  margin: 0 0 0.65rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.045em;
-  text-transform: uppercase;
-  color: #526175;
 }
 .session {
   display: block;
@@ -450,10 +425,6 @@ dialog::backdrop {
   background: #edf4fc;
   border-color: var(--accent);
 }
-.session-unavailable {
-  background: #f7f8fa;
-  border-color: #d8dee7;
-}
 .session-status {
   display: inline-block;
   margin: 0 0 0 0.45rem;
@@ -470,28 +441,6 @@ dialog::backdrop {
   background: #eaf5ee;
   border-color: #b5d7c0;
   color: #265c3b;
-}
-.session-status[data-state="disconnected"] {
-  background: #fff5e6;
-  border-color: #e8cfa8;
-  color: #794b12;
-}
-.session-status[data-state="unavailable"] {
-  background: #eef1f5;
-  border-color: #cbd4df;
-  color: #526175;
-}
-.unavailable-sessions {
-  margin-top: 1.5rem;
-  border-top: 1px solid #dbe2eb;
-  padding-top: 0.5rem;
-}
-.unavailable-sessions > summary {
-  color: #526175;
-  font-size: 0.9rem;
-}
-.unavailable-sessions .session-section {
-  margin-top: 0.5rem;
 }
 .sr-only {
   position: absolute;
@@ -513,8 +462,7 @@ dialog::backdrop {
   .heading {
     min-width: calc(100% - 10rem);
   }
-  #view-button,
-  #details-button {
+  #view-button {
     flex: 1;
   }
   #history {
@@ -524,7 +472,6 @@ dialog::backdrop {
     padding: 0.7rem 0.8rem;
   }
   footer,
-  #details,
   #view-menu,
   #connection,
   #conversation-notice {

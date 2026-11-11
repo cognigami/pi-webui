@@ -150,7 +150,7 @@ export function beginSend(view, id) {
     associationId: view.snapshot.associationId,
     text: view.draft,
   };
-  view.sendFeedback = { status: "sending", detail: "Sending…" };
+  view.sendFeedback = null;
   view.pending = request;
   view.open = false;
   return request;
@@ -164,15 +164,16 @@ export function finishSend(view, id, result) {
   ].includes(result.status)
     ? result.status
     : "outcome_unknown";
-  view.sendFeedback = {
-    status,
-    detail:
-      status === "submitted_unconfirmed"
-        ? "Submitted; acceptance unconfirmed"
-        : status === "rejected"
-          ? "Not sent: " + result.detail
-          : "Delivery unconfirmed. Check the conversation before sending again.",
-  };
+  view.sendFeedback =
+    status === "submitted_unconfirmed"
+      ? null
+      : {
+          status,
+          detail:
+            status === "rejected"
+              ? "Not sent: " + result.detail
+              : "Delivery unconfirmed. Check the conversation before sending again.",
+        };
   // A later rejected request does not settle an earlier unconfirmed dispatch.
   if (status !== "rejected") view.unconfirmedSend = true;
   if (status === "submitted_unconfirmed") view.draft = "";
