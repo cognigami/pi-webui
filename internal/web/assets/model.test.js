@@ -5,7 +5,6 @@ import {
   bulk,
   conversationKey,
   createView,
-  dismiss,
   expanded,
   finishSend,
   ingest,
@@ -14,7 +13,6 @@ import {
   messageError,
   prepend,
   resultFor,
-  reuse,
   toggle,
 } from "./model.js";
 
@@ -44,56 +42,59 @@ test("exact capture, double-tap prevention, and Stop independent of pending Send
   assert.equal(maySend(view, true, true), false);
   assert.equal(mayStop(view, true, true), true);
   assert.throws(() => beginSend(view, "two"), /outstanding/);
-  assert.equal(view.receipts.length, 1);
+  assert.equal(view.pending, req);
   finishSend(view, "one", { status: "submitted_unconfirmed" });
   assert.equal(view.draft, "");
-  assert.equal(view.receipts[0].text, req.text);
-  assert.equal(view.receipts[0].detail, "Submitted; acceptance unconfirmed");
+  assert.equal(view.pending, null);
+  assert.equal(view.sendFeedback.detail, "Submitted; acceptance unconfirmed");
+  assert.equal("receipts" in view, false);
 });
-test("outcome loss preserves original recipient/text and requires deliberate reuse", () => {
+test("lost outcome leaves editable input and inline warning on original conversation, without a review step", () => {
   const view = createView(snapshot(), "First");
   view.draft = "original";
   const req = beginSend(view, "lost");
   const other = createView(snapshot({ associationId: "new" }), "Second");
-  other.draft = "new draft";
+  other.draft = "new text";
   finishSend(view, "lost", { status: "outcome_unknown" });
-  assert.equal(view.receipts[0].target.associationId, req.associationId);
-  assert.equal(other.draft, "new draft");
-  assert.equal(view.needsReview, true);
-  assert.equal(maySend(view, true, true), false);
-  reuse(view, view.receipts[0]);
+  assert.equal(req.associationId, "assoc");
+  assert.equal(other.draft, "new text");
   assert.equal(view.draft, "original");
-  assert.equal(view.open, true);
+  assert.equal(view.pending, null);
+  assert.match(view.sendFeedback.detail, /Delivery unconfirmed/);
   assert.equal(maySend(view, true, true), true);
-  assert.equal(view.receipts.length, 1);
+  assert.equal("needsReview" in view, false);
+  view.draft = "edited normally";
+  const second = beginSend(view, "second");
+  finishSend(view, "lost", { status: "submitted_unconfirmed" });
+  assert.equal(view.pending, second);
+  assert.equal(view.draft, "edited normally");
 });
-test("known rejection and dismissal never send or clear text automatically", () => {
+test("known rejection keeps text in the ordinary input without locking editing or retrying", () => {
   const view = createView(snapshot(), "First");
-  view.draft = "retry deliberately";
+  view.draft = "keep me";
   beginSend(view, "bad");
   finishSend(view, "bad", { status: "rejected", detail: "stale target" });
-  assert.match(view.receipts[0].detail, /Not sent/);
-  assert.equal(view.draft, "retry deliberately");
-  dismiss(view, "bad");
-  assert.equal(view.receipts.length, 0);
-  assert.equal(view.draft, "retry deliberately");
+  assert.match(view.sendFeedback.detail, /Not sent/);
+  assert.equal(view.draft, "keep me");
   assert.equal(view.pending, null);
+  assert.equal(maySend(view, true, true), true);
 });
-test("dismissing an older receipt does not unlock a newer uncertain draft", () => {
-  const view = createView(snapshot(), "A");
-  view.draft = "first";
-  beginSend(view, "first");
-  finishSend(view, "first", { status: "outcome_unknown" });
-  reuse(view, view.receipts[0]);
-  view.draft = "second";
-  beginSend(view, "second");
-  finishSend(view, "second", { status: "outcome_unknown" });
-  dismiss(view, "first");
-  assert.equal(view.needsReview, true);
-  assert.equal(maySend(view, true, true), false);
-  dismiss(view, "second");
-  assert.equal(view.needsReview, false);
-  assert.equal(view.draft, "second");
+test("a later rejection does not erase Stop eligibility from an earlier unconfirmed dispatch", () => {
+  for (const status of ["submitted_unconfirmed", "outcome_unknown"]) {
+    const view = createView(snapshot(), "A");
+    view.draft = "first";
+    beginSend(view, "first");
+    finishSend(view, "first", { status });
+    view.draft = "second";
+    beginSend(view, "second");
+    finishSend(view, "second", {
+      status: "rejected",
+      detail: "not dispatched",
+    });
+    assert.match(view.sendFeedback.detail, /Not sent/);
+    assert.equal(mayStop(view, true, true), true);
+    assert.equal("receipts" in view, false);
+  }
 });
 test("connected busy targets accept Send; unsupported/offline/unverified targets do not", () => {
   const view = createView(

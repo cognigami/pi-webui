@@ -214,6 +214,16 @@ The composer is one real textarea (one row compact, three on focus), with Send/S
 
 Independent read-only reviewer in coordinator-created `w12:tH` / `w12:pH` found no concrete defect after inspecting source/fixtures and append-only/persistence guarantees. Build/lint/test passed: race-enabled Go and 40 Node checks, including untouched-file transitions and single-editor draft behavior. That reviewer tab was closed by returned ID. No user Pi controls, reloads, history reads or process changes were performed. The rebuilt UI needs an RAI-only restart/browser refresh; the cutoff correction applies on the next explicit/new extension load. Actual layout/tablet validation remains the operator's ongoing trial, not proven by DOM fixtures.
 
+### Operator override: remove recovery workflow; show chat, not internal records
+
+The operator explicitly removed **Review message** and the draft-management workflow, and clarified that model/thinking changes, internal custom entries and system setup do not appear as messages in Pi. This supersedes earlier receipt/reuse/lock and Clear/Close requirements in this plan's historical implementation notes.
+
+The UI now has one ordinary textarea plus Send/Stop, without a review dialog, receipt archive, draft menu or mandatory unlock/reuse step. A rejected/unknown result leaves text editable with inline feedback; it never automatically resends. In-flight results stay with their original conversation. One Boolean preserves Stop eligibility from an earlier unconfirmed dispatch when a later Send is rejected, independently of the single latest feedback status; it does not retain submitted text/history.
+
+Normal conversation filters administrative session records out entirely. View → Show session records is the opt-in, using quieter collapsed details. User/assistant messages remain primary, tool activity secondary; errors and meaningful compaction/branch boundaries remain visible. Explicit custom-message display flags are preserved even for deferred entries, so hidden extension messages do not flash into the timeline before expansion. Raw retained data/ancestry/paging and full expansion are unchanged.
+
+Read-only reviewer in coordinator-created `w12:tJ` / `w12:pJ` identified two concrete edge cases (deferred display:false visibility and unresolved Stop eligibility across later rejection); both received minimal fixes, fixtures and cleared focused re-review. Build/lint/test passed after those fixes, including race-enabled Go and Node model/DOM/rendering tests. No user Pi controls/reloads, live history reads or browser-rendering claims. Only an RAI restart/browser refresh is required for this UI/server slice; no extension change in this follow-up.
+
 ### Deferred follow-up: SSH tunnel access
 
 The operator reports **Host not permitted** when accessing RAI through an SSH tunnel; currently they must remote-view the host machine to use the page. Record this as an unresolved access defect, not a requirement to use remote desktop. No tunnel/configuration/security changes were requested for this turn.

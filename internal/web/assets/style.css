@@ -206,6 +206,27 @@ summary {
 summary:hover {
   color: var(--accent);
 }
+article.session-record,
+article.tool-record {
+  margin: 0.3rem 0;
+  padding: 0.25rem 0.6rem;
+  background: transparent;
+  border: 0;
+  border-left: 2px solid var(--border);
+  border-radius: 0;
+}
+.session-record > details > summary {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+.tool-record > .disclosure {
+  margin: 0;
+}
+#records-button[aria-pressed="true"] {
+  background: #edf4fc;
+  border-color: var(--accent);
+}
 .error {
   color: var(--danger);
   white-space: pre-wrap;
@@ -280,23 +301,6 @@ footer > .footer-actions {
   bottom: 0;
   padding-top: 0.35rem;
   background: var(--surface);
-}
-#draft-actions > summary {
-  min-width: 44px;
-  padding: 0.4rem 0.65rem;
-  text-align: center;
-  list-style: none;
-  border: 1px solid var(--border);
-  border-radius: 0.55rem;
-}
-#draft-actions > summary::-webkit-details-marker {
-  display: none;
-}
-.draft-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding-top: 0.35rem;
 }
 #stop-button:not(:disabled) {
   border-color: #c9777d;
@@ -488,21 +492,6 @@ dialog::backdrop {
 }
 .unavailable-sessions .session-section {
   margin-top: 0.5rem;
-}
-.receipt {
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--border);
-}
-.receipt h3 {
-  margin-top: 0;
-  overflow-wrap: anywhere;
-}
-.receipt button {
-  margin: 0.25rem 0.35rem 0.25rem 0;
-}
-.receipt pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 .sr-only {
   position: absolute;

@@ -2,7 +2,7 @@
 
 One Go service and a small TypeScript extension inside participating Pi sessions.
 The browser provides a session menu, retained conversation history plus ongoing
-output, multiline drafts, Send, and Stop. **No React, separate frontend service,
+output, a multiline message input, Send, and Stop. **No React, separate frontend service,
 database, terminal capture, or automatic Pi launching.** Herdr/tmux own Pi.
 
 ## Build and check
@@ -99,27 +99,29 @@ RAI never starts/stops Pi. Ctrl-C or SIGTERM stops only RAI-owned work.
   the first user/assistant message. Missing previously observed/saved history
   remains an error, not an empty conversation.
 - Read the current retained `parentId` ancestry, including stored compaction
-  originals. Load older bounded pages and expand full retained entries. Thinking
+  originals. The normal timeline shows conversation messages, not model/thinking
+  configuration, internal custom data or system setup. **View → Show session
+  records** exposes those as quiet collapsed details. Errors and meaningful
+  compaction/branch boundaries remain visible. Load older bounded pages and
+  expand full retained entries. Thinking
   and tools have independent individual/bulk disclosures. Unknown content and
   unavailable sources are explicit.
 - Ongoing assistant/tool content is provisional. Confirmed persisted IDs and a
   safe cutoff replace it together; `message_end`, text matching and timers are
   not persistence evidence. Reading older content does not force-follow new
   output; **Go to latest** explicitly resynchronizes an over-one-page update gap.
-- Drafts and temporary receipts live only in this page's memory, keyed by the
-  original conversation association. One compact textarea expands on focus;
-  Send and Stop are the primary actions. The **⋯** draft options contain
-  **Clear draft** and **Collapse editor** (Escape also collapses). Collapse
-  preserves the draft; Clear discards it.
-  Reload/closure loses them. A changed conversation requires explicit review
-  before reusing an old draft. A runtime replacement may require selecting the
-  new target explicitly; old drafts remain reviewable rather than redirected.
+- One ordinary textarea expands on focus; Send and Stop are the only composer
+  actions. There is no Review message dialog, receipt archive, draft menu or
+  reuse/unlock step. Unsent input stays with its conversation while this page
+  remains open; reload loses it. Navigation never copies text into a new target.
+  Escape compacts the editor without deleting the text.
 - Send preserves exact nonempty Unicode text and uses ordinary Pi steering,
   without reading/submitting/clearing the desktop draft. It collapses the
   composer and dismisses the keyboard. Its honest result is **Submitted;
   acceptance unconfirmed**, not an invented Sent/queued receipt.
-- Lost/failed Send retains exact text/recipient for deliberate review/reuse.
-  There is no automatic control retry or replay. Persistent Send uncertainty
+- Lost/failed Send leaves the text directly editable with an inline warning;
+  another Send is an ordinary deliberate action, not a recovery workflow.
+  There is no automatic control retry or replay. Send uncertainty
   and Stop feedback can coexist; Stop does not wait for Send's result.
 - Stop uses `ctx.abort(); ctx.ui.setEditorText("")`. It may discard desktop text
   restored from queued input. A remote draft is untouched. **Stop requested**
@@ -138,7 +140,7 @@ identity invalidation, duplicate/renamed labels, unsupported extension dialogs,
 missing-extension discovery and one joint service restart without observed
 replay. A real Node-host tmux discovery omission was fixed and rechecked.
 
-History/projection, browser request security, drafts/receipts, DOM rendering and
+History/projection, browser request security, input/dispatch state, DOM rendering and
 client interactions have synthetic tests and independent source reviews. The
 Go/TS fixture exercises the real service, literal HTTP controls, duplicate-ID
 rejection, restart and stale targets. **DOM geometry is synthetic: actual browser

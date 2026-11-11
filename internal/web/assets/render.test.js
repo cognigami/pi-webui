@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseHTML } from "linkedom";
-import { renderRecord, renderText, safeText } from "./app.js";
+import {
+  isConversationRecord,
+  renderRecord,
+  renderText,
+  safeText,
+} from "./app.js";
 import { bulk, createView } from "./model.js";
 
 const setup = () => {
@@ -17,6 +22,73 @@ const setup = () => {
   );
   return { document, view };
 };
+test("conversation visibility follows chat roles and explicit display; setup records remain opt-in", () => {
+  const { view } = setup();
+  for (const type of [
+    "model_change",
+    "thinking_level_change",
+    "custom",
+    "context_edit",
+    "future_entry",
+  ])
+    assert.equal(
+      !!isConversationRecord(view, { id: type, type, data: { type } }),
+      false,
+    );
+  assert.equal(
+    !!isConversationRecord(view, { type: "message", role: "system" }),
+    false,
+  );
+  for (const role of ["user", "assistant", "toolResult"])
+    assert.equal(isConversationRecord(view, { type: "message", role }), true);
+  for (const type of ["compaction", "branch_summary"])
+    assert.equal(isConversationRecord(view, { type }), true);
+  assert.equal(
+    isConversationRecord(view, { type: "custom", isError: true }),
+    true,
+  );
+  assert.equal(
+    isConversationRecord(view, {
+      type: "custom_message",
+      data: { display: true },
+    }),
+    true,
+  );
+  assert.equal(
+    !!isConversationRecord(view, {
+      type: "custom_message",
+      data: { display: false },
+    }),
+    false,
+  );
+});
+test("deferred custom-message visibility uses bounded display metadata before full expansion", () => {
+  const { view } = setup();
+  const hidden = {
+    id: "hidden",
+    type: "custom_message",
+    display: false,
+    deferred: true,
+  };
+  const visible = {
+    id: "visible",
+    type: "custom_message",
+    display: true,
+    deferred: true,
+  };
+  assert.equal(!!isConversationRecord(view, hidden), false);
+  assert.equal(isConversationRecord(view, visible), true);
+  view.full.set("hidden", { type: "custom_message", display: false });
+  assert.equal(!!isConversationRecord(view, hidden), false);
+  assert.equal(
+    isConversationRecord(view, {
+      id: "default",
+      type: "custom_message",
+      deferred: true,
+    }),
+    true,
+  );
+});
 test("Markdown-like code/text stays inert and never loads remote resources", () => {
   const { document } = setup(),
     target = document.createElement("div");

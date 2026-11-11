@@ -3,7 +3,6 @@ import {
   bulk,
   conversationKey,
   createView,
-  dismiss,
   expanded,
   finishSend,
   ingest,
@@ -12,7 +11,6 @@ import {
   messageError,
   prepend,
   resultFor,
-  reuse,
   toggle,
 } from "./model.js";
 
@@ -117,16 +115,52 @@ function blocks(doc, target, content, view, prefix, helpers) {
       );
   });
 }
+export function isConversationRecord(view, entry) {
+  const raw = view.full.get(entry.id) ?? entry.data;
+  const role = entry.role ?? raw?.message?.role;
+  return (
+    ["user", "assistant", "toolResult"].includes(role) ||
+    entry.isError ||
+    Boolean(raw?.message?.errorMessage) ||
+    ["error", "aborted"].includes(raw?.message?.stopReason) ||
+    ["compaction", "branch_summary"].includes(entry.type) ||
+    (entry.type === "custom_message" &&
+      (entry.display ?? raw?.display) !== false)
+  );
+}
+function recordLabel(entry, raw) {
+  if (entry.role === "toolResult")
+    return "Tool · " + (entry.toolName ?? "unknown");
+  if (entry.type === "model_change")
+    return (
+      "Model · " + (raw?.provider ?? "") + "/" + (raw?.modelId ?? "unknown")
+    );
+  if (entry.type === "thinking_level_change")
+    return "Thinking · " + (raw?.thinkingLevel ?? "unknown");
+  if (entry.type === "compaction")
+    return "Compaction · retained originals remain available";
+  if (entry.type === "branch_summary")
+    return "Branch summary · selected ancestry only";
+  if (entry.role === "system" || raw?.message?.role === "system")
+    return "System context";
+  if (["custom", "custom_message"].includes(entry.type))
+    return "Extension · " + (raw?.customType ?? entry.type);
+  return "Session record · " + entry.type;
+}
 export function renderRecord(doc, view, entry, helpers) {
   const article = el(doc, "article");
-  article.dataset.record = entry.id;
-  article.dataset.role = entry.role || entry.type;
   const raw = view.full.get(entry.id) ?? entry.data;
-  const label =
-    entry.role === "toolResult"
-      ? "Tool · " + (entry.toolName || "unknown")
-      : entry.role || entry.type;
-  article.append(el(doc, "h2", label));
+  const role = entry.role ?? raw?.message?.role;
+  const primary = ["user", "assistant"].includes(role);
+  article.dataset.record = entry.id;
+  article.dataset.role = role || entry.type;
+  article.className = primary
+    ? "chat-message"
+    : role === "toolResult"
+      ? "tool-record"
+      : "session-record";
+  if (primary)
+    article.append(el(doc, "h2", role === "user" ? "You" : "Assistant"));
   if (entry.isError)
     article.append(
       el(
@@ -136,7 +170,22 @@ export function renderRecord(doc, view, entry, helpers) {
         "error",
       ),
     );
+  if (
+    !primary &&
+    !entry.isError &&
+    (raw?.message?.errorMessage ||
+      ["error", "aborted"].includes(raw?.message?.stopReason))
+  )
+    article.append(
+      el(
+        doc,
+        "p",
+        raw.message.errorMessage || "Response " + raw.message.stopReason,
+        "error",
+      ),
+    );
   if (entry.deferred && !raw) {
+    if (!primary) article.append(el(doc, "p", recordLabel(entry, raw), "meta"));
     const loading = view.loads.get(entry.id);
     if (loading?.error) article.append(el(doc, "p", loading.error, "error"));
     const button = el(
@@ -157,6 +206,25 @@ export function renderRecord(doc, view, entry, helpers) {
   }
   if (!raw || typeof raw !== "object") {
     article.append(el(doc, "p", "Unsupported or unavailable entry.", "error"));
+    return article;
+  }
+  if ((!primary && role !== "toolResult") || raw.type !== "message") {
+    if (raw.type === "custom_message" && raw.display !== false) {
+      article.append(el(doc, "p", recordLabel(entry, raw), "meta"));
+      blocks(doc, article, raw.content, view, entry.id, helpers);
+      return article;
+    }
+    const details = el(doc, "details");
+    details.open = view.recordOpen.has(entry.id);
+    details.addEventListener("toggle", () => {
+      if (details.open) view.recordOpen.add(entry.id);
+      else view.recordOpen.delete(entry.id);
+    });
+    details.append(el(doc, "summary", recordLabel(entry, raw)));
+    if (raw.type === "compaction" || raw.type === "branch_summary")
+      renderText(doc, details, raw.summary);
+    else details.append(el(doc, "pre", JSON.stringify(raw, null, 2)));
+    article.append(details);
     return article;
   }
   if (raw.type === "message") {
@@ -199,56 +267,7 @@ export function renderRecord(doc, view, entry, helpers) {
           helpers.changed,
         ),
       );
-    } else if (message.role === "system") {
-      const details = el(doc, "details");
-      details.append(
-        el(doc, "summary", "System context updated"),
-        el(doc, "pre", JSON.stringify(message, null, 2)),
-      );
-      article.append(details);
-    } else if (["user", "assistant"].includes(message.role))
-      blocks(doc, article, message.content, view, entry.id, helpers);
-    else {
-      article.append(
-        el(doc, "p", "Unsupported message role: " + message.role, "meta"),
-      );
-      article.append(el(doc, "pre", JSON.stringify(message, null, 2)));
-    }
-  } else if (raw.type === "compaction" || raw.type === "branch_summary") {
-    article.append(
-      el(
-        doc,
-        "p",
-        raw.type === "compaction"
-          ? "Compaction boundary · retained originals remain above."
-          : "Branch summary · only selected ancestry is shown.",
-        "meta",
-      ),
-    );
-    renderText(doc, article, raw.summary);
-  } else if (raw.type === "context_edit")
-    article.append(
-      el(
-        doc,
-        "p",
-        "Model context edited for " +
-          raw.targetId +
-          "; the retained original is unchanged.",
-        "meta",
-      ),
-    );
-  else if (raw.type === "custom_message") {
-    article.append(
-      el(doc, "p", "Extension message · " + raw.customType, "meta"),
-    );
-    blocks(doc, article, raw.content, view, entry.id, helpers);
-  } else {
-    const details = el(doc, "details");
-    details.append(
-      el(doc, "summary", "Entry metadata · " + raw.type),
-      el(doc, "pre", JSON.stringify(raw, null, 2)),
-    );
-    article.append(details);
+    } else blocks(doc, article, message.content, view, entry.id, helpers);
   }
   return article;
 }
@@ -553,8 +572,7 @@ export async function boot(doc = globalThis.document) {
         active.snapshot.endpointId === snapshot.endpointId &&
         active.key !== key
       )
-        notice =
-          "Conversation changed. Earlier drafts and receipts are retained under their original conversation; review before reuse.";
+        notice = "Conversation changed.";
       if (!views.has(key)) views.set(key, createView(snapshot, row.label));
       active = views.get(key);
       active.label = row.label;
@@ -562,7 +580,6 @@ export async function boot(doc = globalThis.document) {
       active.verified = false;
       active.rendered = false;
     } else active = null;
-    $("draft-actions").open = false;
     renderFrame(true);
     renderList();
     listAt = 0;
@@ -571,20 +588,13 @@ export async function boot(doc = globalThis.document) {
     $("composer").hidden = !active;
     $("draft").rows = active?.open ? 3 : 1;
     $("composer").dataset.expanded = String(!!active?.open);
-    $("draft-actions").hidden =
-      !active || !!active.pending || active.needsReview;
-    if ($("draft-actions").hidden) $("draft-actions").open = false;
-    $("draft").readOnly = !active || !!active.pending || active.needsReview;
+    $("draft").readOnly = !active || !!active.pending;
     if ($("draft").value !== (active?.draft ?? ""))
       $("draft").value = active?.draft ?? "";
-    $("clear-button").disabled =
-      !active?.draft || !!active.pending || active.needsReview;
-    $("close-button").disabled = !active?.open || !!active.pending;
     $("send-button").disabled = !maySend(active, online && !!csrf, verified());
     $("stop-button").disabled = !mayStop(active, online && !!csrf, verified());
     $("draft-error").textContent =
       active?.draft && !active.pending ? messageError(active.draft) : "";
-    const receipt = active?.receipts.at(-1);
     const state = active?.snapshot.state;
     const limitation =
       state?.controlUnavailable ||
@@ -597,17 +607,20 @@ export async function boot(doc = globalThis.document) {
             : "");
     const feedback = [
       limitation,
-      receipt?.detail,
+      active?.sendFeedback?.detail,
       active?.stopReceipt?.detail,
-      active?.needsReview ? "Review the previous submission before reuse." : "",
     ]
       .filter(Boolean)
       .join("\n");
     if ($("feedback").textContent !== feedback)
       $("feedback").textContent = feedback;
-    $("review-button").hidden = ![...views.values()].some(
-      (v) => v.receipts.length || v.draft,
+    $("records-button").setAttribute(
+      "aria-pressed",
+      String(!!active?.showRecords),
     );
+    $("records-button").textContent = active?.showRecords
+      ? "Hide session records"
+      : "Show session records";
   }
   function renderFrame(force = false, preserve = false) {
     $("recipient").textContent =
@@ -664,17 +677,22 @@ export async function boot(doc = globalThis.document) {
       return;
     }
     const view = active;
+    const entries = view.entries.filter(
+      (entry) => view.showRecords || isConversationRecord(view, entry),
+    );
     $("history-health").textContent =
       view.historyError ||
       (!view.ready
         ? "Loading retained history…"
         : view.needsLatest
           ? "More than one page arrived. The old view is retained; Go to latest to resynchronize."
-          : !view.entries.length &&
+          : !entries.length &&
               !view.snapshot.turnOpen &&
               !view.snapshot.provisional?.message &&
               !view.snapshot.provisional?.tools?.length
-            ? "No messages yet. Write a message below."
+            ? view.before
+              ? "No conversation messages on this page. Load older messages or show session records in View."
+              : "No messages yet. Write a message below."
             : "Retained history · " +
               (view.snapshot.turnOpen
                 ? "current turn is provisional"
@@ -688,6 +706,7 @@ export async function boot(doc = globalThis.document) {
       view.snapshot.provisional,
       view.snapshot.liveUnavailable,
       view.needsLatest,
+      view.showRecords,
     ]);
     if (!force && signature === lastSignature) return;
     const contentArrived = signature !== lastSignature;
@@ -699,7 +718,7 @@ export async function boot(doc = globalThis.document) {
     };
     anchored(() => {
       $("messages").replaceChildren(
-        ...view.entries.map((entry) => renderRecord(doc, view, entry, helpers)),
+        ...entries.map((entry) => renderRecord(doc, view, entry, helpers)),
       );
       $("provisional").replaceChildren();
       if (view.snapshot.liveUnavailable)
@@ -726,6 +745,7 @@ export async function boot(doc = globalThis.document) {
           const box = el(doc, "article");
           box.dataset.record = "live-tool:" + tool.toolCallId;
           box.dataset.role = "toolResult";
+          box.className = "tool-record";
           box.append(
             el(
               doc,
@@ -844,58 +864,6 @@ export async function boot(doc = globalThis.document) {
     }
     if (active === view) renderFrame(true, true);
   }
-  function review() {
-    const recipient = active;
-    $("review-content").replaceChildren();
-    for (const view of views.values()) {
-      const items = [...view.receipts];
-      if (view.draft && !items.some((r) => r.text === view.draft))
-        items.push({ text: view.draft, detail: "Unsent draft", id: "draft" });
-      for (const receipt of items) {
-        const box = el(doc, "section", undefined, "receipt");
-        box.append(
-          el(doc, "h3", view.label),
-          el(doc, "p", receipt.detail),
-          el(doc, "pre", receipt.text),
-        );
-        const use = el(
-          doc,
-          "button",
-          view === recipient
-            ? "Use as draft"
-            : "Use in " + (recipient?.label ?? "selected conversation"),
-        );
-        use.disabled =
-          !active || !!active.pending || receipt.status === "sending";
-        use.addEventListener("click", () => {
-          if (!recipient || active !== recipient) {
-            announce(
-              "Conversation changed; reopen review before reusing a draft.",
-            );
-            $("review").close();
-            return;
-          }
-          reuse(recipient, receipt);
-          $("review").close();
-          renderFooter();
-          $("draft").focus();
-        });
-        box.append(use);
-        if (receipt.id !== "draft") {
-          const close = el(doc, "button", "Dismiss notice");
-          close.disabled = receipt.status === "sending";
-          close.addEventListener("click", () => {
-            dismiss(view, receipt.id);
-            review();
-            renderFooter();
-          });
-          box.append(close);
-        }
-        $("review-content").append(box);
-      }
-    }
-    if (!$("review").open) $("review").showModal();
-  }
   async function post(req) {
     try {
       return resultFor(
@@ -926,11 +894,7 @@ export async function boot(doc = globalThis.document) {
     announce("Sending");
     const result = await post(req);
     finishSend(view, req.requestId, result);
-    announce(
-      view.label +
-        ": " +
-        view.receipts.find((r) => r.id === req.requestId)?.detail,
-    );
+    announce(view.label + ": " + view.sendFeedback.detail);
     if (active === view) renderFooter();
   }
   async function stop() {
@@ -1077,8 +1041,11 @@ export async function boot(doc = globalThis.document) {
     $("sessions").close();
     $("sessions-button").setAttribute("aria-expanded", "false");
   });
-  $("review-close").addEventListener("click", () => $("review").close());
-  $("review-button").addEventListener("click", review);
+  $("records-button").addEventListener("click", () => {
+    if (!active) return;
+    active.showRecords = !active.showRecords;
+    renderFrame(true, true);
+  });
   for (const [button, section] of [
     ["view-button", "view-menu"],
     ["details-button", "details"],
@@ -1105,30 +1072,13 @@ export async function boot(doc = globalThis.document) {
   $("draft").addEventListener("keydown", (event) => {
     if (event.key === "Escape" && active) {
       active.open = false;
-      $("draft-actions").open = false;
       $("draft").blur();
       renderFooter();
     }
   });
   $("draft").addEventListener("input", () => {
-    if (active && !active.pending && !active.needsReview) {
-      active.draft = $("draft").value;
-      renderFooter();
-    }
-  });
-  $("clear-button").addEventListener("click", () => {
     if (active && !active.pending) {
-      active.draft = "";
-      $("draft-actions").open = false;
-      renderFooter();
-      $("draft").focus();
-    }
-  });
-  $("close-button").addEventListener("click", () => {
-    if (active) {
-      active.open = false;
-      $("draft-actions").open = false;
-      $("draft").blur();
+      active.draft = $("draft").value;
       renderFooter();
     }
   });

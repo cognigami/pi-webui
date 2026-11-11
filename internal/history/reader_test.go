@@ -93,6 +93,36 @@ func TestUncreatedFileIsEmptyOnlyForAuthoritativeEmptyUnobservedPath(t *testing.
 		t.Fatal("previously observed missing file treated as new")
 	}
 }
+func TestDeferredCustomMessagePreservesDisplayMetadata(t *testing.T) {
+	hidden, visible := false, true
+	for _, tc := range []struct {
+		name, field string
+		want        *bool
+	}{{"hidden", `,"display":false`, &hidden}, {"visible", `,"display":true`, &visible}, {"default", "", nil}} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := entry("custom", nil, "custom_message", tc.field+`,"customType":"fixture","content":[{"type":"text","text":"`+strings.Repeat("x", inlineBytes+1000)+`"}]`)
+			source := fixture(t, tc.name, pointer("custom"), raw)
+			page, err := NewReader().Page(context.Background(), source, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			record := page.Entries[0]
+			if !record.Deferred || len(record.Data) != 0 {
+				t.Fatal("fixture not deferred")
+			}
+			if (record.Display == nil) != (tc.want == nil) || tc.want != nil && *record.Display != *tc.want {
+				t.Fatal("display metadata lost", record.Display)
+			}
+			wire, err := json.Marshal(record)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.want != nil && !strings.Contains(string(wire), fmt.Sprintf(`"display":%t`, *tc.want)) {
+				t.Fatal("display not serialized", string(wire))
+			}
+		})
+	}
+}
 func TestSelectedAncestryRetainsOriginals(t *testing.T) {
 	root := message("root", nil, "original retained text")
 	sibling := message("sibling", pointer("root"), "abandoned branch secret")

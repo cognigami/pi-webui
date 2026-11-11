@@ -32,7 +32,7 @@ function fixtureDOM() {
   window.HTMLElement.prototype.blur = function () {
     if (focused === this) focused = null;
   };
-  for (const id of ["sessions", "review"]) {
+  for (const id of ["sessions"]) {
     const d = document.getElementById(id);
     d.open = false;
     d.showModal = () => {
@@ -195,7 +195,7 @@ test("chooser reports bootstrap failure and stale list inside the sheet, then cl
     "Connected",
   );
 });
-test("untouched conversation shows empty state and one compact editor; draft options don't submit", {
+test("untouched conversation has one ordinary editor and no draft-management UI", {
   timeout: 10000,
 }, async (t) => {
   const { document: doc, window } = fixtureDOM();
@@ -239,13 +239,121 @@ test("untouched conversation shows empty state and one compact editor; draft opt
   $("draft").dispatchEvent(escapeKey);
   assert.equal($("draft").rows, 1);
   assert.equal($("draft").value, "unsent draft");
-  $("draft-actions").open = true;
-  $("clear-button").click();
-  assert.equal($("draft").value, "");
+  for (const id of [
+    "review",
+    "review-button",
+    "draft-actions",
+    "clear-button",
+    "close-button",
+  ])
+    assert.equal($(id), null);
+  $("draft").value = "";
+  $("draft").dispatchEvent(new window.Event("input"));
   assert.equal($("send-button").disabled, true);
-  assert.equal($("draft-actions").open, false);
 });
-test("DOM composer/Stop/uncertain receipt remains on original conversation; drafts and newest selection survive switching", {
+test("normal conversation hides internal session records; View opt-in reveals compact retained details", {
+  timeout: 10000,
+}, async (t) => {
+  const { document: doc, window } = fixtureDOM();
+  const $ = (id) => doc.getElementById(id);
+  const target = row("chat");
+  const entries = [
+    {
+      id: "model",
+      type: "model_change",
+      data: { type: "model_change", provider: "test", modelId: "test-model" },
+    },
+    {
+      id: "thinking",
+      type: "thinking_level_change",
+      data: { type: "thinking_level_change", thinkingLevel: "high" },
+    },
+    {
+      id: "custom",
+      type: "custom",
+      data: {
+        type: "custom",
+        customType: "internal-marker",
+        data: { html: "<script>inert</script>" },
+      },
+    },
+    {
+      id: "system",
+      type: "message",
+      role: "system",
+      data: {
+        type: "message",
+        message: { role: "system", content: "hidden system setup" },
+      },
+    },
+    {
+      id: "u",
+      type: "message",
+      role: "user",
+      data: {
+        type: "message",
+        message: { role: "user", content: "my actual message" },
+      },
+    },
+    {
+      id: "a",
+      type: "message",
+      role: "assistant",
+      data: {
+        type: "message",
+        message: { role: "assistant", content: "the actual reply" },
+      },
+    },
+  ];
+  const original = globalThis.fetch;
+  let app;
+  globalThis.fetch = async (url) => {
+    if (url === "/api/bootstrap") return response({ csrf: "a".repeat(64) });
+    if (url === "/sessions")
+      return response({ rows: [target], failures: {}, coverage: [] });
+    if (String(url).startsWith("/conversation/"))
+      return response({
+        observation: target.observation,
+        history: { entries, before: "" },
+      });
+    throw Error("Unexpected control request " + url);
+  };
+  t.after(() => {
+    app?.stopPolling();
+    globalThis.fetch = original;
+  });
+  app = await boot(doc);
+  app.select(target);
+  await until(
+    () => app.views.get(conversationKey(target.observation.snapshot)).verified,
+  );
+  assert.equal($("messages").querySelectorAll("article").length, 2);
+  assert.equal($("messages").querySelectorAll(".chat-message").length, 2);
+  assert.match($("messages").textContent, /my actual message/);
+  assert.match($("messages").textContent, /the actual reply/);
+  assert.equal($("messages").textContent.includes("internal-marker"), false);
+  assert.equal(
+    $("messages").textContent.includes("hidden system setup"),
+    false,
+  );
+  $("records-button").click();
+  assert.equal($("records-button").getAttribute("aria-pressed"), "true");
+  assert.equal($("messages").querySelectorAll(".session-record").length, 4);
+  assert.equal($("messages").querySelectorAll(".session-record h2").length, 0);
+  assert.equal($("messages").querySelector("script"), null);
+  const details = $("messages").querySelector(".session-record details");
+  assert.equal(details.open, false);
+  details.open = true;
+  details.dispatchEvent(new window.Event("toggle"));
+  $("records-button").click();
+  assert.equal($("messages").querySelectorAll("article").length, 2);
+  $("records-button").click();
+  assert.equal(
+    $("messages").querySelector(".session-record details").open,
+    true,
+  );
+});
+test("Send/Stop outcomes stay on original conversation without review UI; editable input survives switching", {
   timeout: 15000,
 }, async (t) => {
   const { document: doc, window, history } = fixtureDOM();
@@ -331,7 +439,7 @@ test("DOM composer/Stop/uncertain receipt remains on original conversation; draf
   assert.equal(doc.querySelectorAll("textarea").length, 1);
   assert.equal($("message-button"), null);
   assert.equal($("draft").rows, 1);
-  assert.equal($("draft-actions").open, false);
+  assert.equal($("draft-actions"), null);
   $("draft").focus();
   assert.equal($("draft").rows, 3);
   const literal = " \n/command café 🦉\n  ";
@@ -360,19 +468,15 @@ test("DOM composer/Stop/uncertain receipt remains on original conversation; draf
     }),
   );
   await until(() => a.pending === null);
-  assert.equal($("feedback").textContent.includes("Outcome unknown"), false);
-  app.select(rows[0]);
-  assert.match($("feedback").textContent, /Outcome unknown/);
-  assert.match($("feedback").textContent, /Stop requested/);
-  $("review-button").click();
-  assert.ok(
-    [...$("review-content").querySelectorAll("pre")].some(
-      (n) => n.textContent === literal,
-    ),
+  assert.equal(
+    $("feedback").textContent.includes("Delivery unconfirmed"),
+    false,
   );
-  [...$("review-content").querySelectorAll("button")]
-    .find((b) => b.textContent === "Use as draft")
-    .click();
+  app.select(rows[0]);
+  assert.match($("feedback").textContent, /Delivery unconfirmed/);
+  assert.match($("feedback").textContent, /Stop requested/);
+  assert.equal($("review-button"), null);
+  assert.equal($("draft").readOnly, false);
   assert.equal($("draft").value, literal);
   assert.equal($("composer").hidden, false);
   assert.equal(calls.length, 2);
@@ -383,10 +487,6 @@ test("DOM composer/Stop/uncertain receipt remains on original conversation; draf
   $("draft").focus();
   $("draft").value = "second draft";
   $("draft").dispatchEvent(new window.Event("input"));
-  $("draft-actions").open = true;
-  $("close-button").click();
-  assert.equal($("draft-actions").open, false);
-  assert.equal($("draft").rows, 1);
   app.select(rows[0]);
   history.scrollTop = 150;
   app.select(rows[1]);
@@ -399,14 +499,6 @@ test("DOM composer/Stop/uncertain receipt remains on original conversation; draf
   assert.equal($("composer").hidden, false);
   assert.equal($("draft").rows, 1);
   assert.equal(calls.length, 2);
-  $("review-button").click();
-  const staleUse = [...$("review-content").querySelectorAll("button")].find(
-    (b) => b.textContent === "Use in Session b",
-  );
-  assert.ok(staleUse);
-  app.select(rows[0]);
-  staleUse.click();
-  assert.match($("announcements").textContent, /Conversation changed/);
   assert.equal(a.draft, literal);
   assert.equal(
     app.views.get(conversationKey(rows[1].observation.snapshot)).draft,

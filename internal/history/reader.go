@@ -51,6 +51,7 @@ type Entry struct {
 	Role     string          `json:"role,omitempty"`
 	ToolName string          `json:"toolName,omitempty"`
 	IsError  bool            `json:"isError,omitempty"`
+	Display  *bool           `json:"display,omitempty"`
 	Data     json.RawMessage `json:"data,omitempty"`
 	Deferred bool            `json:"deferred"`
 	Bytes    int             `json:"bytes"`
@@ -408,12 +409,21 @@ func parseEntry(raw []byte) (Entry, error) {
 			return Entry{}, errors.New("history message role is missing")
 		}
 	}
+	var custom struct {
+		Display *bool `json:"display"`
+	}
+	if wire.Type == "custom_message" {
+		if err := json.Unmarshal(raw, &custom); err != nil {
+			return Entry{}, fmt.Errorf("malformed custom message: %w", err)
+		}
+	}
 	if len(wire.Type) > maxMetadataBytes || len(message.Message.Role) > maxMetadataBytes || len(message.Message.ToolName) > maxMetadataBytes {
 		return Entry{}, errors.New("history metadata exceeds supported bound (1024 bytes)")
 	}
 	return Entry{ID: wire.ID, ParentID: parent, Type: wire.Type,
 		Role: message.Message.Role, ToolName: message.Message.ToolName,
 		IsError:  message.Message.IsError || message.Message.StopReason == "error",
+		Display:  custom.Display,
 		Deferred: len(raw) > inlineBytes, Bytes: len(raw)}, nil
 }
 

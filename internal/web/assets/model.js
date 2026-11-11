@@ -13,8 +13,10 @@ export function createView(snapshot, label) {
     draft: "",
     open: false,
     pending: null,
-    receipts: [],
-    needsReview: false,
+    sendFeedback: null,
+    unconfirmedSend: false,
+    showRecords: false,
+    recordOpen: new Set(),
     stopPending: false,
     stopReceipt: null,
     tools: { all: false, overrides: new Map() },
@@ -97,7 +99,6 @@ export function maySend(view, online, verified) {
     online &&
     verified &&
     !view.pending &&
-    !view.needsReview &&
     view.snapshot.state.sendSupported &&
     !view.snapshot.state.controlUnavailable &&
     !messageError(view.draft)
@@ -114,10 +115,7 @@ export function mayStop(view, online, verified) {
     return false;
   return (
     !!view.pending ||
-    view.receipts.some(
-      (r) =>
-        r.status === "submitted_unconfirmed" || r.status === "outcome_unknown",
-    ) ||
+    view.unconfirmedSend ||
     view.snapshot.state.activity !== "idle" ||
     view.snapshot.state.pending
   );
@@ -152,55 +150,31 @@ export function beginSend(view, id) {
     associationId: view.snapshot.associationId,
     text: view.draft,
   };
-  view.receipts.push({
-    id,
-    text: view.draft,
-    target: { ...request, text: undefined },
-    status: "sending",
-    detail: "Sending",
-  });
-  view.pending = id;
+  view.sendFeedback = { status: "sending", detail: "Sending…" };
+  view.pending = request;
   view.open = false;
   return request;
 }
 export function finishSend(view, id, result) {
-  const receipt = view.receipts.find((r) => r.id === id);
-  if (!receipt) return;
-  receipt.status = [
+  if (view.pending?.requestId !== id) return;
+  const status = [
     "submitted_unconfirmed",
     "rejected",
     "outcome_unknown",
   ].includes(result.status)
     ? result.status
     : "outcome_unknown";
-  receipt.detail =
-    receipt.status === "submitted_unconfirmed"
-      ? "Submitted; acceptance unconfirmed"
-      : receipt.status === "rejected"
-        ? "Not sent: " + result.detail
-        : "Outcome unknown. Check the conversation or terminal before sending again.";
-  if (view.pending === id) {
-    view.pending = null;
-    if (receipt.status === "submitted_unconfirmed") {
-      view.draft = "";
-      view.needsReview = false;
-    } else {
-      view.draft = receipt.text;
-      view.needsReview = true;
-    }
-  }
-}
-export function reuse(view, receipt) {
-  if (view.pending) return false;
-  view.draft = receipt.text;
-  view.needsReview = false;
-  view.open = true;
-  return true;
-}
-export function dismiss(view, id) {
-  const receipt = view.receipts.find((r) => r.id === id);
-  if (receipt?.status === "sending") return;
-  const clearsReview = view.receipts.at(-1)?.id === id;
-  view.receipts = view.receipts.filter((r) => r.id !== id);
-  if (clearsReview) view.needsReview = false;
+  view.sendFeedback = {
+    status,
+    detail:
+      status === "submitted_unconfirmed"
+        ? "Submitted; acceptance unconfirmed"
+        : status === "rejected"
+          ? "Not sent: " + result.detail
+          : "Delivery unconfirmed. Check the conversation before sending again.",
+  };
+  // A later rejected request does not settle an earlier unconfirmed dispatch.
+  if (status !== "rejected") view.unconfirmedSend = true;
+  if (status === "submitted_unconfirmed") view.draft = "";
+  view.pending = null;
 }
