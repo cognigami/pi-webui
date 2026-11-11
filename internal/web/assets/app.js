@@ -120,6 +120,7 @@ function blocks(doc, target, content, view, prefix, helpers) {
 export function renderRecord(doc, view, entry, helpers) {
   const article = el(doc, "article");
   article.dataset.record = entry.id;
+  article.dataset.role = entry.role || entry.type;
   const raw = view.full.get(entry.id) ?? entry.data;
   const label =
     entry.role === "toolResult"
@@ -266,6 +267,8 @@ export async function boot(doc = globalThis.document) {
     loadingOlder = false;
   let notice = "",
     discovery = "",
+    discoveryIncomplete = false,
+    discoveryError = "",
     connection = "",
     lastAnnouncement = "",
     lastSignature = "";
@@ -389,38 +392,151 @@ export async function boot(doc = globalThis.document) {
     $("sessions-button").setAttribute("aria-expanded", "true");
   }
   function renderList() {
-    $("discovery-health").textContent = discovery;
+    $("discovery-health").textContent = discoveryError
+      ? discoveryError + "\n" + discovery
+      : discovery;
+    const list = $("session-list");
     const focusedSession = doc.activeElement?.dataset?.sessionKey;
-    $("session-list").replaceChildren();
-    for (const row of rows) {
-      const button = el(doc, "button", undefined, "session");
-      button.dataset.sessionKey =
-        row.endpointId ??
-        JSON.stringify(row.panes?.map((p) => [p.backend, p.scope, p.id]));
-      button.append(
-        el(doc, "strong", row.label),
-        el(doc, "small", row.context),
+    const othersOpen =
+      list.querySelector(".unavailable-sessions")?.open ?? false;
+    const summaryFocused = doc.activeElement?.matches(
+      ".unavailable-sessions > summary",
+    );
+    const integrated = rows.filter((row) => row.integration === "connected");
+    const connected = integrated.filter((row) => row.observation?.connected);
+    const disconnected = integrated.filter(
+      (row) => !row.observation?.connected,
+    );
+    const others = rows.filter((row) => row.integration !== "connected");
+    const summary =
+      discoveryError ||
+      (connected.length
+        ? `${connected.length} connected ${connected.length === 1 ? "session" : "sessions"}. Choose one to read or send a message.`
+        : "No sessions connected to RAI yet.") +
+        (discoveryIncomplete
+          ? " Discovery incomplete; see details below."
+          : "");
+    if ($("session-summary").textContent !== summary)
+      $("session-summary").textContent = summary;
+    list.replaceChildren();
+    function group(title, items, parent, state) {
+      if (!items.length) return;
+      const section = el(doc, "section", undefined, "session-section");
+      section.append(el(doc, "h3", title));
+      for (const row of items) {
+        const button = el(
+          doc,
+          "button",
+          undefined,
+          "session " +
+            (state === "unavailable"
+              ? "session-unavailable"
+              : "session-connected"),
+        );
+        button.dataset.sessionKey =
+          row.endpointId ??
+          JSON.stringify(row.panes?.map((p) => [p.backend, p.scope, p.id]));
+        if (row.endpointId && row.endpointId === selected?.endpointId)
+          button.setAttribute("aria-current", "true");
+        const badge = el(
+          doc,
+          "span",
+          discoveryError && state !== "unavailable"
+            ? "Connection unverified"
+            : state === "connected"
+              ? "Connected"
+              : state === "disconnected"
+                ? "Connection lost"
+                : "Not connected",
+          "session-status",
+        );
+        badge.dataset.state =
+          discoveryError && state !== "unavailable" ? "disconnected" : state;
+        button.append(
+          el(doc, "strong", row.label),
+          badge,
+          el(doc, "small", row.context),
+        );
+        if (state !== "unavailable") {
+          const activity =
+            {
+              idle: "Idle",
+              working: "Working",
+              waiting: "Waiting for input",
+              unknown: "Activity unknown",
+            }[row.observation?.snapshot.state.activity] ?? "Activity unknown";
+          button.append(
+            el(
+              doc,
+              "small",
+              (discoveryError ? "Last observed: " : "") +
+                activity +
+                (row.ownership === "single-context"
+                  ? ""
+                  : " · Multiplexer ownership unresolved"),
+            ),
+          );
+        }
+        button.addEventListener("click", () => {
+          choose(row);
+          $("sessions").close();
+          $("sessions-button").setAttribute("aria-expanded", "false");
+          history.focus({ preventScroll: true });
+        });
+        section.append(button);
+      }
+      parent.append(section);
+    }
+    group(
+      discoveryError ? "Last known connections" : "Connected",
+      connected,
+      list,
+      "connected",
+    );
+    group("Reconnecting", disconnected, list, "disconnected");
+    if (!integrated.length && !discoveryError)
+      list.append(
         el(
           doc,
-          "small",
-          row.integration === "connected"
-            ? row.observation?.snapshot.state.activity + " · " + row.ownership
-            : "Integration unavailable — explicit extension load required",
+          "p",
+          "Keep RAI running, then load the RAI extension in the Pi session you want. If it is already loaded, check its socket path and terminal notices.",
+          "empty-state",
         ),
       );
-      button.addEventListener("click", () => {
-        choose(row);
-        $("sessions").close();
-        $("sessions-button").setAttribute("aria-expanded", "false");
-      });
-      $("session-list").append(button);
+    if (others.length) {
+      const other = el(doc, "details", undefined, "unavailable-sessions");
+      other.open = othersOpen;
+      other.append(
+        el(
+          doc,
+          "summary",
+          `Other Pi sessions (${others.length}) · not connected`,
+        ),
+      );
+      other.append(
+        el(
+          doc,
+          "p",
+          "Discovered Pi processes without an active RAI connection. They are separate from the connected sessions above.",
+          "context",
+        ),
+      );
+      group("Other sessions", others, other, "unavailable");
+      list.append(other);
     }
     if (focusedSession && $("sessions").open) {
-      const restored = [...$("session-list").children].find(
+      const restored = [...list.querySelectorAll("[data-session-key]")].find(
         (n) => n.dataset.sessionKey === focusedSession,
       );
-      (restored ?? $("sessions-close")).focus({ preventScroll: true });
-    }
+      const hidden = restored?.closest("details");
+      (restored && (!hidden || hidden.open)
+        ? restored
+        : $("sessions-close")
+      ).focus({ preventScroll: true });
+    } else if (summaryFocused && $("sessions").open)
+      list
+        .querySelector(".unavailable-sessions > summary")
+        ?.focus({ preventScroll: true });
   }
   function choose(row) {
     for (const load of active?.loads.values() ?? []) load.controller?.abort();
@@ -447,6 +563,7 @@ export async function boot(doc = globalThis.document) {
       active.rendered = false;
     } else active = null;
     renderFrame(true);
+    renderList();
     listAt = 0;
   }
   function renderFooter() {
@@ -601,6 +718,7 @@ export async function boot(doc = globalThis.document) {
         for (const tool of provisional?.tools ?? []) {
           const box = el(doc, "article");
           box.dataset.record = "live-tool:" + tool.toolCallId;
+          box.dataset.role = "toolResult";
           box.append(
             el(
               doc,
@@ -837,20 +955,25 @@ export async function boot(doc = globalThis.document) {
   async function poll() {
     if (stopped || polling) return;
     polling = true;
+    let refreshingList = false;
     try {
       if (!csrf) {
+        refreshingList = true;
         const bootstrap = await request("/api/bootstrap");
         if (!/^[a-f0-9]{64}$/.test(bootstrap.csrf))
           throw Error("Invalid bootstrap");
         csrf = bootstrap.csrf;
       }
       if (Date.now() - listAt > 4000 || !online) {
+        refreshingList = true;
         const list = await request("/sessions");
         rows = list.rows;
+        discoveryError = "";
         listAt = Date.now();
         const failures = Object.entries(list.failures ?? {}).map(
           ([backend, error]) => backend + ": " + error,
         );
+        discoveryIncomplete = failures.length > 0;
         discovery =
           (failures.length
             ? "Partially available · " + failures.join(" · ")
@@ -888,6 +1011,7 @@ export async function boot(doc = globalThis.document) {
           }
         }
       }
+      refreshingList = false;
       online = true;
       connection = "";
       if (active && selected?.endpointId && !unavailable) {
@@ -904,6 +1028,15 @@ export async function boot(doc = globalThis.document) {
         }
       }
     } catch (error) {
+      if (refreshingList) {
+        discoveryError =
+          "Could not refresh the session list. " +
+          (rows.length
+            ? "Showing last known sessions; connections are unverified. "
+            : "Check that RAI is running. ") +
+          safeText(error.message);
+        renderList();
+      }
       if ([404, 409].includes(error.status)) {
         unavailable = true;
         listAt = 0;

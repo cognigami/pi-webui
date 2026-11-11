@@ -34,6 +34,11 @@ function fixtureDOM() {
     d.open = false;
     d.showModal = () => {
       d.open = true;
+      d.dataset.modal = "true";
+    };
+    d.show = () => {
+      d.open = true;
+      d.dataset.modal = "false";
     };
     d.close = () => {
       d.open = false;
@@ -74,6 +79,119 @@ const response = (value) =>
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+test("session chooser foregrounds connected sessions with native modal focus; other sessions stay folded", {
+  timeout: 12000,
+}, async (t) => {
+  const { document: doc, window } = fixtureDOM();
+  const $ = (id) => doc.getElementById(id);
+  const other = {
+    label: "AAA unrelated Pi",
+    context: "elsewhere",
+    integration: "unavailable",
+    panes: [],
+  };
+  let rows = [other, row("z")],
+    app;
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (url === "/api/bootstrap") return response({ csrf: "a".repeat(64) });
+    if (url === "/sessions")
+      return response({ rows, failures: {}, coverage: ["fixture discovery"] });
+    throw Error("Unexpected chooser request " + url);
+  };
+  t.after(() => {
+    app?.stopPolling();
+    globalThis.fetch = original;
+  });
+  app = await boot(doc);
+  assert.equal($("sessions").dataset.modal, "true");
+  assert.match($("session-summary").textContent, /1 connected session/);
+  assert.equal(
+    $("session-list").querySelector(".session strong").textContent,
+    "Session z",
+  );
+  assert.equal(
+    $("session-list").querySelector(".session-status").dataset.state,
+    "connected",
+  );
+  const others = $("session-list").querySelector(".unavailable-sessions");
+  assert.equal(others.open, false);
+  assert.equal($("discovery-details").hasAttribute("open"), false);
+  assert.equal(
+    $("session-list").textContent.includes("explicit extension load required"),
+    false,
+  );
+  others.open = true;
+  const summary = others.querySelector("summary");
+  summary.focus();
+  rows = [other, row("z"), row("a")];
+  doc.dispatchEvent(new window.Event("visibilitychange"));
+  await until(() =>
+    $("session-summary").textContent.includes("2 connected sessions"),
+  );
+  const refreshed = $("session-list").querySelector(".unavailable-sessions");
+  assert.equal(refreshed.open, true);
+  assert.equal(doc.activeElement, refreshed.querySelector("summary"));
+  rows = [other];
+  doc.dispatchEvent(new window.Event("visibilitychange"));
+  await until(() =>
+    $("session-summary").textContent.includes("No sessions connected"),
+  );
+  assert.match(
+    $("session-list").querySelector(".empty-state").textContent,
+    /socket path and terminal notices/,
+  );
+});
+test("chooser reports bootstrap failure and stale list inside the sheet, then clears on recovery", {
+  timeout: 12000,
+}, async (t) => {
+  const { document: doc, window } = fixtureDOM();
+  const $ = (id) => doc.getElementById(id);
+  let failing = true,
+    app;
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (failing) throw Error("fixture offline");
+    if (url === "/api/bootstrap") return response({ csrf: "a".repeat(64) });
+    if (url === "/sessions")
+      return response({ rows: [row("z")], failures: {}, coverage: [] });
+    throw Error("Unexpected request " + url);
+  };
+  t.after(() => {
+    app?.stopPolling();
+    globalThis.fetch = original;
+  });
+  app = await boot(doc);
+  assert.match(
+    $("session-summary").textContent,
+    /Could not refresh.*fixture offline/,
+  );
+  assert.equal($("session-list").querySelector(".empty-state"), null);
+  assert.match($("discovery-health").textContent, /fixture offline/);
+  failing = false;
+  doc.dispatchEvent(new window.Event("visibilitychange"));
+  await until(() =>
+    $("session-summary").textContent.includes("1 connected session"),
+  );
+  failing = true;
+  doc.dispatchEvent(new window.Event("visibilitychange"));
+  await until(() =>
+    $("session-summary").textContent.includes("last known sessions"),
+  );
+  assert.equal(
+    $("session-list").querySelector(".session-status").textContent,
+    "Connection unverified",
+  );
+  failing = false;
+  doc.dispatchEvent(new window.Event("visibilitychange"));
+  await until(() =>
+    $("session-summary").textContent.includes("1 connected session"),
+  );
+  assert.equal(
+    $("session-list").querySelector(".session-status").textContent,
+    "Connected",
+  );
+});
 test("DOM composer/Stop/uncertain receipt remains on original conversation; drafts and newest selection survive switching", {
   timeout: 15000,
 }, async (t) => {

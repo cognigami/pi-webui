@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -195,18 +196,26 @@ func historySource(o bridge.Observation) (history.Source, error) {
 	return history.Source{Key: s.EndpointID + ":" + s.AssociationID, SessionID: s.Session.ID, File: *s.Session.File, Leaf: s.Session.Cutoff}, nil
 }
 func boundary(authority, csrf string, next http.Handler) http.Handler {
-	// Browsers omit the default HTTP port from Host/serialized Origin.
-	canonical := strings.TrimSuffix(authority, ":80")
+	// Permit the conventional localhost alias only for a loopback listener,
+	// never arbitrary DNS names or aliases of a private-network listener.
+	hosts := map[string]bool{authority: true, strings.TrimSuffix(authority, ":80"): true}
+	if host, port, err := net.SplitHostPort(authority); err == nil && net.ParseIP(host).IsLoopback() {
+		alias := net.JoinHostPort("localhost", port)
+		hosts[alias] = true
+		hosts[strings.TrimSuffix(alias, ":80")] = true
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
-		if r.Host != authority && r.Host != canonical {
+		if !hosts[r.Host] {
 			http.Error(w, "Host not permitted", 403)
 			return
 		}
 		origin := r.Header.Get("Origin")
-		validOrigin := origin == "http://"+authority || origin == "http://"+canonical
+		// Origin must match the host used for this request, including when the
+		// browser omits the default HTTP port. Aliases are not cross-origin grants.
+		validOrigin := origin == "http://"+r.Host || origin == "http://"+strings.TrimSuffix(r.Host, ":80")
 		if origin != "" && !validOrigin {
 			http.Error(w, "Origin not permitted", 403)
 			return

@@ -284,6 +284,50 @@ func TestStopHTTPDoesNotWaitForPendingSend(t *testing.T) {
 		t.Fatal(result.Body.String())
 	}
 }
+func TestLocalhostAliasForLoopbackOnlyAndMatchingOrigin(t *testing.T) {
+	for _, tc := range []struct{ authority, host string }{
+		{"127.0.0.1:8484", "localhost:8484"},
+		{"[::1]:8484", "localhost:8484"},
+		{"127.0.0.1:80", "localhost"},
+		{"127.0.0.1:80", "localhost:80"},
+	} {
+		t.Run(tc.authority+"/"+tc.host, func(t *testing.T) {
+			s, _ := webFixture(t)
+			h, err := App(s, tc.authority, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			bootstrap := call(h, "GET", "/api/bootstrap", "", "", "", tc.host)
+			if bootstrap.Code != 200 {
+				t.Fatal(bootstrap.Code, bootstrap.Body.String())
+			}
+			var token map[string]string
+			json.Unmarshal(bootstrap.Body.Bytes(), &token)
+			body := `{"type":"control","version":1,"endpointId":"ep","associationId":"assoc","requestId":"localhost","operation":"stop"}`
+			valid := call(h, "POST", "/control", body, "http://"+strings.TrimSuffix(tc.host, ":80"), token["csrf"], tc.host)
+			if valid.Code != 200 || len(s.calls) != 1 {
+				t.Fatal(valid.Code, valid.Body.String())
+			}
+			for _, host := range []string{"localhost.attacker.example:8484", "localhost:8485", "arbitrary.example:8484"} {
+				if w := call(h, "GET", "/api/bootstrap", "", "", "", host); w.Code != 403 {
+					t.Fatal("foreign host accepted", host, w.Code)
+				}
+			}
+			wrongOrigin := call(h, "POST", "/control", body, "http://"+tc.authority, token["csrf"], tc.host)
+			if wrongOrigin.Code != 403 || len(s.calls) != 1 {
+				t.Fatal("cross-alias Origin accepted", wrongOrigin.Code)
+			}
+		})
+	}
+	s, _ := webFixture(t)
+	h, err := App(s, "192.168.1.9:8484", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := call(h, "GET", "/api/bootstrap", "", "", "", "localhost:8484"); w.Code != 403 {
+		t.Fatal("LAN listener accepted localhost alias", w.Code)
+	}
+}
 func TestDefaultHTTPPortUsesBrowserCanonicalOrigin(t *testing.T) {
 	s, _ := webFixture(t)
 	h, err := App(s, "127.0.0.1:80", nil)

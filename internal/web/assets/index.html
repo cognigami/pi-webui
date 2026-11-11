@@ -41,7 +41,9 @@
 </footer>
 <dialog id="sessions" aria-labelledby="sessions-title">
 <div class="dialog-heading"><h2 id="sessions-title">Sessions</h2><button id="sessions-close">Close</button></div>
-<p id="discovery-health">Loading sessions…</p><div id="session-list"></div>
+<p id="session-summary" role="status">Looking for connected sessions…</p>
+<div id="session-list"></div>
+<details id="discovery-details"><summary>Discovery details</summary><p id="discovery-health">Loading sessions…</p></details>
 </dialog>
 <dialog id="review" aria-labelledby="review-title">
 <div class="dialog-heading"><h2 id="review-title">Review messages and drafts</h2><button id="review-close">Close</button></div>

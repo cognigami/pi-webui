@@ -33,9 +33,13 @@ Focused examples: `just test internal/history`, `just test internal/web`,
 ./bin/rai serve
 ```
 
-Open **http://127.0.0.1:8484**. The first view is the session list. Sessions
-without the extension appear as **Integration unavailable** where discovery can
-identify them; installing a file does not attach it to a running Pi.
+Open **http://localhost:8484** (or **http://127.0.0.1:8484**). The light session
+sheet puts **Connected** sessions first, with a count and connection badge.
+Other discovered Pi sessions are folded under **Other Pi sessions**; that does
+not prove the extension is uninstalled, only that no RAI connection is active.
+The chooser is a light sheet without a dark veil, retaining native modal
+keyboard focus/Escape behavior. Discovery diagnostics are available separately
+rather than obscuring the usable sessions.
 
 **The service does not install/reload into existing sessions.** For an operator-
 chosen **new** interactive Pi session, use its supported explicit extension load:
@@ -44,9 +48,17 @@ chosen **new** interactive Pi session, use its supported explicit extension load
 pi --presets:preset eng -e /absolute/path/to/pi-webui/extension/index.ts
 ```
 
-No regular-session installation/reload is implied by building or starting RAI.
-Use Pi's supported configuration/package mechanism only when you explicitly
-choose regular installation. Only interactive TUI mode participates.
+For regular installation, add the absolute path to `extension/index.ts` to the
+existing `"extensions"` array in `~/.pi/agent/settings.json`, preserving all other
+entries/settings. New interactive Pi sessions load it automatically; explicitly
+run `/reload` in each chosen idle existing session to load it there. No copying
+of the extension's individual files is needed. Building/starting RAI never
+installs it or reloads Pi. Only interactive TUI mode participates.
+
+If nothing is connected, check that the extension loaded without terminal errors
+and that Pi's `RAI_SOCKET` matches the service's bridge socket. After rebuilding
+RAI, stop/restart **only the RAI service** and refresh the browser to load its
+new embedded assets. Pi can stay running; the extension reconnects automatically.
 
 The default bridge socket is `~/.local/state/rai/bridge.sock`. Its directory must
 be user-owned mode 0700 without symlink components; the socket is mode 0600.

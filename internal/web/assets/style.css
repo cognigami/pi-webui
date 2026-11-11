@@ -1,11 +1,14 @@
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, sans-serif;
-  --surface: light-dark(#fff, #161c24);
-  --muted: light-dark(#54606c, #aebac8);
-  --border: light-dark(#d5dde5, #354252);
-  --accent: light-dark(#1557a5, #8bc4ff);
-  --danger: light-dark(#a32828, #ffaaaa);
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  color: #1e293b;
+  background: #f5f7fa;
+  --surface: #ffffff;
+  --muted: #526175;
+  --border: #ccd5e0;
+  --accent: #1d4f91;
+  --danger: #a1212b;
 }
 * {
   box-sizing: border-box;
@@ -15,7 +18,8 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: var(--surface);
+  background: #f5f7fa;
+  color: #1e293b;
 }
 #app {
   height: var(--viewport-height, 100dvh);
@@ -30,56 +34,71 @@ header,
 .dialog-heading {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 header {
-  padding: 0.5rem;
+  flex: none;
+  padding: 0.85rem 1.25rem;
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 .heading {
   min-width: 0;
   flex: 1;
+  padding: 0 0.35rem;
 }
 h1 {
   font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.4;
   margin: 0;
   overflow-wrap: anywhere;
 }
 h2 {
-  font-size: 1.15rem;
+  font-size: 1.25rem;
+  line-height: 1.4;
 }
 p {
-  line-height: 1.5;
+  line-height: 1.65;
 }
 #activity {
-  margin: 0.15rem 0 0;
+  margin: 0.2rem 0 0;
   color: var(--muted);
   font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 button {
   min-height: 44px;
   min-width: 44px;
-  padding: 0.6rem 0.85rem;
+  padding: 0.65rem 0.95rem;
   border: 1px solid var(--border);
-  border-radius: 0.45rem;
+  border-radius: 0.55rem;
   background: var(--surface);
-  color: inherit;
+  color: #263750;
   font: inherit;
+  font-weight: 550;
+  line-height: 1.4;
   cursor: pointer;
   overflow-wrap: anywhere;
 }
-button:hover {
-  border-color: var(--accent);
+button:hover:not(:disabled) {
+  border-color: #7b92ad;
+  background: #f0f5fb;
+}
+button:active:not(:disabled) {
+  background: #e4edf8;
 }
 button:disabled {
   cursor: default;
-  opacity: 0.5;
+  background: #f0f2f5;
+  border-color: #d6dde6;
+  color: #647184;
+  opacity: 1;
 }
-button:focus-visible,
-textarea:focus-visible,
-#history:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+:focus-visible {
+  outline: 3px solid #2468bf;
+  outline-offset: 3px;
 }
 #history {
   flex: 1;
@@ -87,52 +106,105 @@ textarea:focus-visible,
   overflow: auto;
   overscroll-behavior: contain;
   scroll-behavior: auto;
-  padding: 0.8rem max(0.7rem, calc((100% - 58rem) / 2));
+  padding: 1.25rem max(1.25rem, calc((100% - 54rem) / 2));
   overflow-anchor: none;
+  scrollbar-gutter: stable;
 }
 #history-health,
 .context,
 .meta {
   color: var(--muted);
   font-size: 0.85rem;
+  line-height: 1.6;
+}
+#history-health {
+  margin: 0.25rem 0 1.25rem;
 }
 article {
-  padding: 0.6rem 0.2rem 1rem;
-  border-bottom: 1px solid var(--border);
+  margin: 0 0 1rem;
+  padding: 1.15rem 1.35rem;
+  border: 1px solid #dbe2eb;
+  border-radius: 0.75rem;
+  background: var(--surface);
   overflow-wrap: anywhere;
 }
 article h2 {
-  font-size: 0.85rem;
-  margin: 0.15rem 0 0.5rem;
-  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  margin: 0 0 0.8rem;
+  color: #405775;
+}
+article[data-role="user"] {
+  background: #edf4fc;
+  border-color: #c8d9ed;
+}
+article[data-role="user"] h2 {
+  color: #1d4f91;
+}
+article[data-role="assistant"] h2 {
+  color: #285b4c;
 }
 article p {
-  margin: 0.4rem 0;
+  margin: 0.55rem 0;
   white-space: pre-wrap;
+}
+article > :last-child {
+  margin-bottom: 0;
 }
 pre {
   white-space: pre;
   overflow: auto;
   max-width: 100%;
-  padding: 0.7rem;
-  background: light-dark(#f1f4f7, #0e131a);
-  border-radius: 0.4rem;
+  padding: 1rem;
+  border: 1px solid #dce3ec;
+  background: #f3f6fa;
+  color: #263750;
+  border-radius: 0.5rem;
   font-size: 0.85rem;
-  line-height: 1.5;
+  line-height: 1.65;
+  tab-size: 2;
 }
-code {
-  font-family: ui-monospace, monospace;
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 .disclosure {
-  margin: 0.4rem 0;
+  margin: 0.65rem 0;
 }
 .disclosure > button {
   text-align: left;
   width: 100%;
+  background: #f5f7fa;
+  font-size: 0.9rem;
+}
+.disclosure > button::before {
+  content: "+";
+  display: inline-block;
+  width: 1.25rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+.disclosure > button[aria-expanded="true"]::before {
+  content: "−";
 }
 .disclosure-body {
-  padding: 0.35rem;
-  border-left: 2px solid var(--border);
+  margin: 0.5rem 0 0 0.5rem;
+  padding: 0.25rem 0 0.25rem 0.85rem;
+  border-left: 2px solid #b8c9dd;
+}
+summary {
+  min-height: 44px;
+  padding: 0.75rem 0.35rem;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+summary:hover {
+  color: var(--accent);
 }
 .error {
   color: var(--danger);
@@ -140,28 +212,42 @@ code {
   overflow-wrap: anywhere;
 }
 #provisional {
-  border-left: 3px solid var(--accent);
-  padding-left: 0.5rem;
+  border-left: 3px solid #6996c9;
+  padding-left: 0.75rem;
 }
 #provisional:empty {
   border: 0;
+  padding: 0;
 }
 #connection,
 #conversation-notice {
-  padding: 0.4rem 0.8rem;
-  background: light-dark(#fff2d7, #3b301d);
+  flex: none;
+  padding: 0.7rem 1.25rem;
+  border-bottom: 1px solid #e9d5a5;
+  background: #fff6e5;
+  color: #70460b;
   font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 #details,
 #view-menu {
-  padding: 0.5rem;
+  flex: none;
+  padding: 0.85rem 1.25rem;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   max-height: 25vh;
   overflow: auto;
 }
+#details {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
 #view-menu {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 [hidden] {
@@ -170,14 +256,21 @@ code {
 footer {
   flex: none;
   border-top: 1px solid var(--border);
-  padding: 0.5rem 0.7rem;
+  background: var(--surface);
+  padding: 0.85rem max(1.25rem, calc((100% - 54rem) / 2));
   max-height: 55%;
   overflow: auto;
 }
 #feedback {
+  color: #40516a;
   font-size: 0.9rem;
-  padding-bottom: 0.3rem;
+  line-height: 1.5;
+  padding-bottom: 0.65rem;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#feedback:empty {
+  padding: 0;
 }
 .footer-actions {
   flex-wrap: wrap;
@@ -186,71 +279,215 @@ footer {
   flex: 1;
   text-align: left;
 }
-#stop-button {
-  border-color: var(--danger);
+#stop-button:not(:disabled) {
+  border-color: #c9777d;
   color: var(--danger);
+  background: #fff7f7;
 }
 #send-button {
   margin-left: auto;
+}
+#send-button:not(:disabled) {
   border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+#send-button:hover:not(:disabled) {
+  background: #163e74;
 }
 #composer label {
   display: block;
-  margin: 0.5rem 0 0.2rem;
-  font-size: 0.85rem;
+  margin: 0.85rem 0 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 textarea {
   width: 100%;
+  min-height: 88px;
   max-height: 24vh;
   resize: vertical;
   font: inherit;
-  padding: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 0.4rem;
+  line-height: 1.6;
+  padding: 0.75rem;
+  border: 1px solid #95a8bf;
+  border-radius: 0.55rem;
   background: var(--surface);
-  color: inherit;
+  color: #1e293b;
+}
+textarea::placeholder {
+  color: #637186;
 }
 #draft-error:empty {
   display: none;
 }
+#composer > .footer-actions {
+  margin-top: 0.65rem;
+}
 #latest {
+  flex: none;
   align-self: center;
-  margin: 0.3rem;
+  margin: 0.45rem;
   color: var(--accent);
+  border-color: #97b5d9;
+  box-shadow: 0 2px 6px #20395b12;
 }
 dialog {
   border: 1px solid var(--border);
-  border-radius: 0.7rem;
-  padding: 1rem;
-  width: min(40rem, 94vw);
-  max-height: 90%;
+  border-radius: 0.85rem;
+  padding: 1.5rem;
+  width: min(42rem, calc(100vw - 2rem));
+  max-height: calc(100% - 2rem);
   background: var(--surface);
-  color: inherit;
+  color: #1e293b;
   overflow: auto;
+  overscroll-behavior: contain;
+  box-shadow: 0 12px 44px #20395b24;
 }
 dialog::backdrop {
-  background: #0008;
+  background: #26375018;
+}
+.dialog-heading {
+  justify-content: space-between;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid #e1e7ef;
 }
 .dialog-heading h2 {
   flex: 1;
+  margin: 0;
+}
+#sessions {
+  position: fixed;
+  z-index: 10;
+  inset: 0 auto 0 0;
+  margin: 0;
+  width: min(29rem, 100vw);
+  max-width: 100vw;
+  height: var(--viewport-height, 100dvh);
+  max-height: 100%;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem
+    max(1.25rem, env(safe-area-inset-bottom))
+    max(1.25rem, env(safe-area-inset-left));
+  box-shadow: 8px 0 32px #20395b1a;
+}
+#sessions::backdrop {
+  background: transparent;
+}
+#discovery-health,
+#session-summary {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+#discovery-health {
+  color: var(--muted);
+  white-space: pre-line;
+  margin: 0.75rem 0;
+}
+#session-summary {
+  color: #263750;
+  font-weight: 600;
+  margin: 1rem 0;
+}
+.session-section {
+  margin-top: 1.5rem;
+}
+.session-section > h2,
+.session-section > h3 {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: #526175;
 }
 .session {
   display: block;
   text-align: left;
   width: 100%;
-  margin: 0.5rem 0;
+  margin: 0.65rem 0;
+  padding: 0.9rem 1rem;
+  background: var(--surface);
 }
 .session strong,
 .session small {
   display: block;
 }
+.session strong {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #23364e;
+}
 .session small {
   color: var(--muted);
-  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.6;
+  margin-top: 0.35rem;
+}
+.session-connected {
+  border-color: #b5cdbf;
+}
+.session[aria-current="true"],
+.session[aria-pressed="true"] {
+  background: #edf4fc;
+  border-color: var(--accent);
+}
+.session-unavailable {
+  background: #f7f8fa;
+  border-color: #d8dee7;
+}
+.session-status {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid #c7d1df;
+  border-radius: 1rem;
+  background: #f0f3f7;
+  color: #45546a;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.session-status[data-state="connected"] {
+  background: #eaf5ee;
+  border-color: #b5d7c0;
+  color: #265c3b;
+}
+.session-status[data-state="disconnected"] {
+  background: #fff5e6;
+  border-color: #e8cfa8;
+  color: #794b12;
+}
+.session-status[data-state="unavailable"] {
+  background: #eef1f5;
+  border-color: #cbd4df;
+  color: #526175;
+}
+.unavailable-sessions {
+  margin-top: 1.5rem;
+  border-top: 1px solid #dbe2eb;
+  padding-top: 0.5rem;
+}
+.unavailable-sessions > summary {
+  color: #526175;
+  font-size: 0.9rem;
+}
+.unavailable-sessions .session-section {
+  margin-top: 0.5rem;
 }
 .receipt {
-  padding: 0.6rem 0;
+  padding: 1rem 0;
   border-bottom: 1px solid var(--border);
+}
+.receipt h3 {
+  margin-top: 0;
+  overflow-wrap: anywhere;
+}
+.receipt button {
+  margin: 0.25rem 0.35rem 0.25rem 0;
 }
 .receipt pre {
   white-space: pre-wrap;
@@ -267,19 +504,41 @@ dialog::backdrop {
   white-space: nowrap;
   border: 0;
 }
-@media (max-width: 600px) {
+@media (max-width: 720px) {
   header {
-    gap: 0.3rem;
+    padding: 0.65rem 0.75rem;
+    gap: 0.5rem;
     flex-wrap: wrap;
   }
   .heading {
-    min-width: 45%;
+    min-width: calc(100% - 10rem);
   }
-  #details-button,
-  #view-button {
-    padding: 0.4rem;
+  #view-button,
+  #details-button {
+    flex: 1;
   }
-  #sessions-button {
-    font-size: 0.9rem;
+  #history {
+    padding: 1rem 0.75rem;
+  }
+  article {
+    padding: 1rem;
+  }
+  footer,
+  #details,
+  #view-menu,
+  #connection,
+  #conversation-notice {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  #sessions {
+    width: 100vw;
+    border-right: 0;
+    box-shadow: none;
+  }
+  dialog {
+    padding: 1rem;
+    width: calc(100vw - 1rem);
+    max-height: calc(100% - 1rem);
   }
 }
