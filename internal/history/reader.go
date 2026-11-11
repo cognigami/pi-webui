@@ -107,6 +107,12 @@ func (r *Reader) Page(ctx context.Context, source Source, before string) (Page, 
 	defer r.mu.Unlock()
 	s, err := r.open(ctx, source)
 	if err != nil {
+		// A new Pi session has no file until its first conversation message.
+		// Only an authoritative empty cutoff, with no previously observed file,
+		// permits this; missing saved history and invalid cursors remain errors.
+		if source.Leaf == nil && before == "" && r.sources[source.Key] == nil && errors.Is(err, os.ErrNotExist) {
+			return Page{Entries: []Entry{}}, nil
+		}
 		return Page{}, err
 	}
 	defer s.file.Close()
@@ -212,7 +218,7 @@ func (r *Reader) open(ctx context.Context, source Source) (*snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if source.Key == "" || source.SessionID == "" || source.File == "" {
+	if source.Key == "" || source.SessionID == "" {
 		return nil, errors.New("history source is unavailable")
 	}
 	if len(source.Key) > maxMetadataBytes || len(source.SessionID) > maxIDBytes || len(source.File) > 4096 {

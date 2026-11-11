@@ -94,6 +94,10 @@ RAI never starts/stops Pi. Ctrl-C or SIGTERM stops only RAI-owned work.
 - Select by existing labels plus context; labels never become control targets.
   Discovery, connection, history, and activity failures stay distinct. An old
   selection never silently redirects to another process after it disappears.
+- A new session with no conversation shows **No messages yet**. Pi may keep
+  setup/name metadata in memory without creating its planned JSONL file until
+  the first user/assistant message. Missing previously observed/saved history
+  remains an error, not an empty conversation.
 - Read the current retained `parentId` ancestry, including stored compaction
   originals. Load older bounded pages and expand full retained entries. Thinking
   and tools have independent individual/bulk disclosures. Unknown content and
@@ -103,7 +107,10 @@ RAI never starts/stops Pi. Ctrl-C or SIGTERM stops only RAI-owned work.
   not persistence evidence. Reading older content does not force-follow new
   output; **Go to latest** explicitly resynchronizes an over-one-page update gap.
 - Drafts and temporary receipts live only in this page's memory, keyed by the
-  original conversation association. Close hides a draft; Clear discards it.
+  original conversation association. One compact textarea expands on focus;
+  Send and Stop are the primary actions. The **⋯** draft options contain
+  **Clear draft** and **Collapse editor** (Escape also collapses). Collapse
+  preserves the draft; Clear discards it.
   Reload/closure loses them. A changed conversation requires explicit review
   before reusing an old draft. A runtime replacement may require selecting the
   new target explicitly; old drafts remain reviewable rather than redirected.

@@ -61,6 +61,38 @@ func pageIDs(page Page) []string {
 	return ids
 }
 
+func TestUncreatedFileIsEmptyOnlyForAuthoritativeEmptyUnobservedPath(t *testing.T) {
+	r := NewReader()
+	source := Source{Key: "fresh", SessionID: "session", File: filepath.Join(t.TempDir(), "not-created-yet.jsonl")}
+	page, err := r.Page(context.Background(), source, "")
+	if err != nil || len(page.Entries) != 0 || page.Entries == nil {
+		t.Fatal(page, err)
+	}
+	if _, err := os.Stat(source.File); !os.IsNotExist(err) {
+		t.Fatal("reader created a source", err)
+	}
+	if _, err := r.Page(context.Background(), source, "old-cursor"); err == nil {
+		t.Fatal("empty path accepted cursor")
+	}
+	source.Leaf = pointer("saved")
+	if _, err := r.Page(context.Background(), source, ""); err == nil {
+		t.Fatal("missing saved history treated as empty")
+	}
+	if err := os.WriteFile(source.File, []byte(header("session")+"\n"+message("saved", nil, "first message")+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	page, err = r.Page(context.Background(), source, "")
+	if err != nil || len(page.Entries) != 1 {
+		t.Fatal(page, err)
+	}
+	if err := os.Remove(source.File); err != nil {
+		t.Fatal(err)
+	}
+	source.Leaf = nil
+	if _, err := r.Page(context.Background(), source, ""); err == nil {
+		t.Fatal("previously observed missing file treated as new")
+	}
+}
 func TestSelectedAncestryRetainsOriginals(t *testing.T) {
 	root := message("root", nil, "original retained text")
 	sibling := message("sibling", pointer("root"), "abandoned branch secret")

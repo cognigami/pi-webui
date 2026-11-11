@@ -31,13 +31,15 @@
 <button id="latest" hidden>New content below · Go to latest</button>
 <footer>
 <div id="feedback"></div>
-<div class="footer-actions"><button id="message-button">Message…</button><button id="review-button" hidden>Review message</button><button id="stop-button" disabled>Stop</button></div>
 <section id="composer" hidden aria-label="Message composer">
-<label for="draft">Message</label>
-<textarea id="draft" rows="4" placeholder="Message…" spellcheck="true"></textarea>
+<label for="draft" class="sr-only">Message</label>
+<textarea id="draft" rows="1" placeholder="Message…" spellcheck="true"></textarea>
 <p id="draft-error" class="error" role="status"></p>
-<div class="footer-actions"><button id="clear-button">Clear</button><button id="close-button">Close</button><button id="send-button" disabled>Send</button></div>
 </section>
+<div class="footer-actions">
+<details id="draft-actions" hidden><summary aria-label="Draft options" title="Draft options">⋯</summary><div class="draft-options"><button id="clear-button">Clear draft</button><button id="close-button">Collapse editor</button></div></details>
+<button id="review-button" hidden>Review message</button><button id="stop-button" disabled>Stop</button><button id="send-button" disabled>Send</button>
+</div>
 </footer>
 <dialog id="sessions" aria-labelledby="sessions-title">
 <div class="dialog-heading"><h2 id="sessions-title">Sessions</h2><button id="sessions-close">Close</button></div>

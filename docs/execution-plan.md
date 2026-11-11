@@ -204,6 +204,16 @@ The follow-up uses an explicit light palette with readable foregrounds, a light 
 
 A CSS-only worker in coordinator-created `w12:tG` / `w12:pG` handed back its stylesheet and performed read-only review of the coordinator's other changes. It found the hidden chooser-error case; the fix and failure/recovery fixture passed focused re-review. The coordinator inspected the stylesheet. Final build/lint/test passed: race-enabled Go packages and 38 Node checks. No real-browser rendering/geometry tool was available, so this is not visual/tablet acceptance. That worker tab was closed by returned ID. The operator's existing RAI service was not stopped/restarted; the rebuilt binary's embedded changes require restarting only RAI and refreshing the browser. Participating Pi processes can remain running and reconnect normally.
 
+### Operator iteration: untouched history, one editor, moderate density
+
+The operator's untouched `TESTTESTTEST!!!` session showed a history-loading error, then the composer exposed both the compact Message-like button and textarea plus four primary-looking buttons. The light styling also overcorrected spacing. These are usability defects, not acceptance results.
+
+Source inspection of Pi's public session-manager implementation confirmed that setup/name entries can have an in-memory leaf and planned filename while no file exists; first user/assistant message flushes them. The extension now reports an empty persisted cutoff until that public conversation-start fact is true, without a new wire flag or extension file reader. The Go reader allows ENOENT as an empty page only for an authoritative nil cutoff, no cursor, and no previously observed source. Missing saved/previously observed files and other errors stay explicit. Browser copy is **No messages yet**.
+
+The composer is one real textarea (one row compact, three on focus), with Send/Stop primary. Clear draft and Collapse editor live in secondary native **⋯** details; Escape also collapses without clearing. Draft/receipt ownership, exact payloads, independent Stop and uncertain-outcome locks are unchanged. Padding/card gaps/editor footprint are reduced while preserving 16px body text, light contrast and 44px targets. No theme/configuration framework was added.
+
+Independent read-only reviewer in coordinator-created `w12:tH` / `w12:pH` found no concrete defect after inspecting source/fixtures and append-only/persistence guarantees. Build/lint/test passed: race-enabled Go and 40 Node checks, including untouched-file transitions and single-editor draft behavior. That reviewer tab was closed by returned ID. No user Pi controls, reloads, history reads or process changes were performed. The rebuilt UI needs an RAI-only restart/browser refresh; the cutoff correction applies on the next explicit/new extension load. Actual layout/tablet validation remains the operator's ongoing trial, not proven by DOM fixtures.
+
 ### Deferred follow-up: SSH tunnel access
 
 The operator reports **Host not permitted** when accessing RAI through an SSH tunnel; currently they must remote-view the host machine to use the page. Record this as an unresolved access defect, not a requirement to use remote desktop. No tunnel/configuration/security changes were requested for this turn.

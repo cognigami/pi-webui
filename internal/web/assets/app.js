@@ -562,22 +562,24 @@ export async function boot(doc = globalThis.document) {
       active.verified = false;
       active.rendered = false;
     } else active = null;
+    $("draft-actions").open = false;
     renderFrame(true);
     renderList();
     listAt = 0;
   }
   function renderFooter() {
-    $("composer").hidden = !active?.open;
-    $("message-button").disabled =
+    $("composer").hidden = !active;
+    $("draft").rows = active?.open ? 3 : 1;
+    $("composer").dataset.expanded = String(!!active?.open);
+    $("draft-actions").hidden =
       !active || !!active.pending || active.needsReview;
-    $("message-button").textContent = active?.draft
-      ? "Continue draft…"
-      : "Message…";
+    if ($("draft-actions").hidden) $("draft-actions").open = false;
     $("draft").readOnly = !active || !!active.pending || active.needsReview;
     if ($("draft").value !== (active?.draft ?? ""))
       $("draft").value = active?.draft ?? "";
     $("clear-button").disabled =
-      !active || !!active.pending || active.needsReview;
+      !active?.draft || !!active.pending || active.needsReview;
+    $("close-button").disabled = !active?.open || !!active.pending;
     $("send-button").disabled = !maySend(active, online && !!csrf, verified());
     $("stop-button").disabled = !mayStop(active, online && !!csrf, verified());
     $("draft-error").textContent =
@@ -668,10 +670,15 @@ export async function boot(doc = globalThis.document) {
         ? "Loading retained history…"
         : view.needsLatest
           ? "More than one page arrived. The old view is retained; Go to latest to resynchronize."
-          : "Retained history · " +
-            (view.snapshot.turnOpen
-              ? "current turn is provisional"
-              : "completed boundary"));
+          : !view.entries.length &&
+              !view.snapshot.turnOpen &&
+              !view.snapshot.provisional?.message &&
+              !view.snapshot.provisional?.tools?.length
+            ? "No messages yet. Write a message below."
+            : "Retained history · " +
+              (view.snapshot.turnOpen
+                ? "current turn is provisional"
+                : "completed boundary"));
     $("history-health").className = view.historyError ? "error" : "meta";
     $("older").hidden = !view.before || view.needsLatest;
     $("older").disabled = loadingOlder;
@@ -1089,11 +1096,18 @@ export async function boot(doc = globalThis.document) {
       renderFrame(true, true);
       if (value === "true") await expandBulk(view);
     });
-  $("message-button").addEventListener("click", () => {
+  $("draft").addEventListener("focus", () => {
     if (active) {
       active.open = true;
       renderFooter();
-      $("draft").focus();
+    }
+  });
+  $("draft").addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && active) {
+      active.open = false;
+      $("draft-actions").open = false;
+      $("draft").blur();
+      renderFooter();
     }
   });
   $("draft").addEventListener("input", () => {
@@ -1105,12 +1119,15 @@ export async function boot(doc = globalThis.document) {
   $("clear-button").addEventListener("click", () => {
     if (active && !active.pending) {
       active.draft = "";
+      $("draft-actions").open = false;
       renderFooter();
+      $("draft").focus();
     }
   });
   $("close-button").addEventListener("click", () => {
     if (active) {
       active.open = false;
+      $("draft-actions").open = false;
       $("draft").blur();
       renderFooter();
     }

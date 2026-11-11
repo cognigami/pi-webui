@@ -79,6 +79,7 @@ test("Go/TS roundtrip, literal controls, restart, fresh identity, and no replay"
     },
     sessionManager: {
       getLeafId: () => null,
+      getEntries: () => [],
       getEntry: () => undefined,
       getSessionId: () => "synthetic-session",
       getSessionFile: () => undefined,

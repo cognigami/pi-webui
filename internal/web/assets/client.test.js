@@ -24,7 +24,10 @@ function fixtureDOM() {
     return { top: 0, bottom: 20, height: this.hidden ? 0 : 20 };
   };
   window.HTMLElement.prototype.focus = function () {
-    focused = this;
+    if (focused !== this) {
+      focused = this;
+      this.dispatchEvent(new window.Event("focus"));
+    }
   };
   window.HTMLElement.prototype.blur = function () {
     if (focused === this) focused = null;
@@ -192,6 +195,56 @@ test("chooser reports bootstrap failure and stale list inside the sheet, then cl
     "Connected",
   );
 });
+test("untouched conversation shows empty state and one compact editor; draft options don't submit", {
+  timeout: 10000,
+}, async (t) => {
+  const { document: doc, window } = fixtureDOM();
+  const $ = (id) => doc.getElementById(id);
+  const target = row("empty");
+  target.observation.snapshot.session.leaf = "setup";
+  target.observation.snapshot.session.cutoff = null;
+  const original = globalThis.fetch;
+  let app;
+  globalThis.fetch = async (url) => {
+    if (url === "/api/bootstrap") return response({ csrf: "a".repeat(64) });
+    if (url === "/sessions")
+      return response({ rows: [target], failures: {}, coverage: [] });
+    if (String(url).startsWith("/conversation/"))
+      return response({
+        observation: target.observation,
+        history: { entries: [], before: "" },
+      });
+    throw Error("Unexpected control request " + url);
+  };
+  t.after(() => {
+    app?.stopPolling();
+    globalThis.fetch = original;
+  });
+  app = await boot(doc);
+  app.select(target);
+  await until(
+    () => app.views.get(conversationKey(target.observation.snapshot)).verified,
+  );
+  assert.match($("history-health").textContent, /No messages yet/);
+  assert.equal($("composer").hidden, false);
+  assert.equal($("draft").rows, 1);
+  assert.equal(doc.querySelectorAll("textarea").length, 1);
+  assert.equal($("send-button").disabled, true);
+  $("draft").focus();
+  $("draft").value = "unsent draft";
+  $("draft").dispatchEvent(new window.Event("input"));
+  assert.equal($("send-button").disabled, false);
+  const escapeKey = new window.Event("keydown");
+  escapeKey.key = "Escape";
+  $("draft").dispatchEvent(escapeKey);
+  assert.equal($("draft").rows, 1);
+  assert.equal($("draft").value, "unsent draft");
+  $("draft-actions").open = true;
+  $("clear-button").click();
+  assert.equal($("draft").value, "");
+  assert.equal($("send-button").disabled, true);
+  assert.equal($("draft-actions").open, false);
+});
 test("DOM composer/Stop/uncertain receipt remains on original conversation; drafts and newest selection survive switching", {
   timeout: 15000,
 }, async (t) => {
@@ -275,7 +328,12 @@ test("DOM composer/Stop/uncertain receipt remains on original conversation; draf
   await until(() => a.verified);
   assert.match($("provisional").textContent, /Unsupported tool result format/);
   assert.equal($("provisional").querySelector("script"), null);
-  $("message-button").click();
+  assert.equal(doc.querySelectorAll("textarea").length, 1);
+  assert.equal($("message-button"), null);
+  assert.equal($("draft").rows, 1);
+  assert.equal($("draft-actions").open, false);
+  $("draft").focus();
+  assert.equal($("draft").rows, 3);
   const literal = " \n/command café 🦉\n  ";
   $("draft").value = literal;
   $("draft").dispatchEvent(new window.Event("input"));
@@ -284,7 +342,8 @@ test("DOM composer/Stop/uncertain receipt remains on original conversation; draf
   $("send-button").click();
   await until(() => calls.length === 1);
   assert.equal(calls[0].text, literal);
-  assert.equal($("composer").hidden, true);
+  assert.equal($("composer").hidden, false);
+  assert.equal($("draft").rows, 1);
   assert.equal(doc.activeElement, null);
   assert.equal($("stop-button").disabled, false);
   $("stop-button").click();
@@ -321,10 +380,13 @@ test("DOM composer/Stop/uncertain receipt remains on original conversation; draf
   await until(
     () => app.views.get(conversationKey(rows[1].observation.snapshot)).verified,
   );
-  $("message-button").click();
+  $("draft").focus();
   $("draft").value = "second draft";
   $("draft").dispatchEvent(new window.Event("input"));
+  $("draft-actions").open = true;
   $("close-button").click();
+  assert.equal($("draft-actions").open, false);
+  assert.equal($("draft").rows, 1);
   app.select(rows[0]);
   history.scrollTop = 150;
   app.select(rows[1]);
@@ -334,7 +396,8 @@ test("DOM composer/Stop/uncertain receipt remains on original conversation; draf
     "revisited session opens at newest, not prior recipient scroll offset",
   );
   assert.equal($("draft").value, "second draft");
-  assert.equal($("composer").hidden, true);
+  assert.equal($("composer").hidden, false);
+  assert.equal($("draft").rows, 1);
   assert.equal(calls.length, 2);
   $("review-button").click();
   const staleUse = [...$("review-content").querySelectorAll("button")].find(

@@ -45,6 +45,7 @@ export class Observation {
   historyReady = true;
   turnOpen = false;
   private assistantStarted = false;
+  private conversationStarted = false;
   private overflow = false;
   ctx: ExtensionContext;
   private readonly pi: Pick<ExtensionAPI, "sendUserMessage">;
@@ -54,7 +55,7 @@ export class Observation {
   ) {
     this.ctx = ctx;
     this.pi = pi;
-    this.cutoff = ctx.sessionManager.getLeafId();
+    this.cutoff = this.retainedCutoff();
     if (!ctx.isIdle()) {
       this.turnOpen = true;
       this.historyReady = false;
@@ -62,6 +63,21 @@ export class Observation {
       this.unavailable =
         "Live output before extension load unavailable; history resynchronizes at a confirmed turn boundary.";
     }
+  }
+  private retainedCutoff(): string | null {
+    // Pi keeps setup/name entries in memory until the first user/assistant
+    // message. A planned file path and in-memory leaf aren't persisted history.
+    // Entries are append-only within this runtime's session; latch once true.
+    this.conversationStarted ||= this.ctx.sessionManager
+      .getEntries()
+      .some(
+        (entry) =>
+          entry.type === "message" &&
+          (entry.message.role === "user" || entry.message.role === "assistant"),
+      );
+    return this.conversationStarted
+      ? this.ctx.sessionManager.getLeafId()
+      : null;
   }
   reconnect() {
     this.endpointId = randomUUID();
@@ -79,7 +95,7 @@ export class Observation {
   navigate() {
     this.navigating = false;
     this.associationId = randomUUID();
-    this.cutoff = this.ctx.sessionManager.getLeafId();
+    this.cutoff = this.retainedCutoff();
     this.turnOpen = false;
     this.historyReady = true;
     this.reset();
@@ -88,13 +104,13 @@ export class Observation {
     this.reset();
     this.turnOpen = true;
     this.assistantStarted = false;
-    if (this.historyReady) this.cutoff = this.ctx.sessionManager.getLeafId();
+    if (this.historyReady) this.cutoff = this.retainedCutoff();
   }
   settled() {
     this.reset();
     this.turnOpen = false;
     this.historyReady = true;
-    this.cutoff = this.ctx.sessionManager.getLeafId();
+    this.cutoff = this.retainedCutoff();
   }
   reset() {
     this.message = null;
@@ -107,7 +123,7 @@ export class Observation {
     this.reset();
     this.turnOpen = false;
     this.historyReady = true;
-    this.cutoff = this.ctx.sessionManager.getLeafId();
+    this.cutoff = this.retainedCutoff();
     if (toolResultEntryIds.length > 128) {
       this.overflow = true;
       this.unavailable =
@@ -126,7 +142,7 @@ export class Observation {
     ) {
       this.assistantStarted = true;
       this.historyReady = true;
-      this.cutoff = this.ctx.sessionManager.getLeafId();
+      this.cutoff = this.retainedCutoff();
     }
     if (!this.overflow && event.message.role === "assistant") {
       this.message = event.message;
@@ -166,7 +182,7 @@ export class Observation {
       !this.navigating &&
       this.ctx.isIdle()
     )
-      this.cutoff = sm.getLeafId();
+      this.cutoff = this.retainedCutoff();
     const sample: Snapshot["session"]["sample"] = [];
     let id = sm.getLeafId();
     for (let n = 0; id && n < 8; n++) {

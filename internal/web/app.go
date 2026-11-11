@@ -190,10 +190,15 @@ func historySource(o bridge.Observation) (history.Source, error) {
 	if !s.HistoryReady {
 		return history.Source{}, errors.New("History awaits a confirmed turn boundary; an older extension may need an explicit reload.")
 	}
+	var file string
 	if s.Session.File == nil {
-		return history.Source{}, errors.New("Retained history unavailable for this ephemeral Pi session.")
+		if s.Session.Cutoff != nil {
+			return history.Source{}, errors.New("Retained history unavailable for this ephemeral Pi session.")
+		}
+	} else {
+		file = *s.Session.File
 	}
-	return history.Source{Key: s.EndpointID + ":" + s.AssociationID, SessionID: s.Session.ID, File: *s.Session.File, Leaf: s.Session.Cutoff}, nil
+	return history.Source{Key: s.EndpointID + ":" + s.AssociationID, SessionID: s.Session.ID, File: file, Leaf: s.Session.Cutoff}, nil
 }
 func boundary(authority, csrf string, next http.Handler) http.Handler {
 	// Permit the conventional localhost alias only for a loopback listener,

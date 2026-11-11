@@ -12,6 +12,7 @@ import { parseControl, type Snapshot } from "./protocol.ts";
 function host() {
   let leaf: string | null = "entry-1";
   let idle = true;
+  let conversationStarted = true;
   let editor = "desktop draft";
   let aborted = 0;
   const calls: { text: unknown; options: unknown }[] = [];
@@ -21,6 +22,17 @@ function host() {
     hasUI: true,
     sessionManager: {
       getLeafId: () => leaf,
+      getEntries: () =>
+        conversationStarted
+          ? [
+              {
+                type: "message",
+                id: "user",
+                parentId: null,
+                message: { role: "user", content: "prior" },
+              },
+            ]
+          : [{ type: "model_change", id: "setup", parentId: null }],
       getSessionId: () => "fixture-session",
       getSessionFile: () => "/synthetic/session.jsonl",
       getEntry: (id: string) => ({ id, parentId: null }),
@@ -49,6 +61,9 @@ function host() {
     setLeaf: (id: string) => {
       leaf = id;
     },
+    setConversation: (value: boolean) => {
+      conversationStarted = value;
+    },
     setIdle: (value: boolean) => {
       idle = value;
     },
@@ -71,6 +86,24 @@ function req(
     text,
   };
 }
+test("setup-only in-memory leaf is not a persisted cutoff before the first conversation message", () => {
+  const h = host();
+  h.setConversation(false);
+  h.setLeaf("setup");
+  const o = new Observation(h.ctx, h.pi);
+  assert.equal(o.snapshot().session.leaf, "setup");
+  assert.equal(o.snapshot().session.cutoff, null);
+  assert.equal(o.snapshot().historyReady, true);
+  h.setIdle(false);
+  o.beginTurn();
+  h.setConversation(true);
+  h.setLeaf("saved-first-user");
+  o.observeMessage({
+    type: "message_start",
+    message: { role: "assistant", content: [] },
+  } as never);
+  assert.equal(o.snapshot().session.cutoff, "saved-first-user");
+});
 test("shared wire fixture and validation", () => {
   const fixture = JSON.parse(
     readFileSync(new URL("../testdata/snapshot.json", import.meta.url), "utf8"),

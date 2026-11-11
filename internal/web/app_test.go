@@ -104,6 +104,46 @@ func csrfToken(t *testing.T, h http.Handler) string {
 	}
 	return value["csrf"]
 }
+func TestUntouchedSessionIsEmptyBeforeFileCreationButMissingSavedHistoryIsError(t *testing.T) {
+	s, _ := webFixture(t)
+	path := filepath.Join(t.TempDir(), "not-created-yet.jsonl")
+	s.observation.Snapshot.Session.File = &path
+	s.observation.Snapshot.Session.Leaf = nil
+	s.observation.Snapshot.Session.Cutoff = nil
+	s.observation.Snapshot.TurnOpen = false
+	s.observation.Snapshot.Provisional = json.RawMessage(`{"message":null,"tools":[]}`)
+	h := appFor(t, s)
+	get := func() conversation {
+		w := call(h, "GET", "/conversation/ep?association=assoc", "", "", "", testAuthority)
+		if w.Code != 200 {
+			t.Fatal(w.Code)
+		}
+		var c conversation
+		if err := json.Unmarshal(w.Body.Bytes(), &c); err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	for _, file := range []*string{&path, nil} {
+		s.observation.Snapshot.Session.File = file
+		c := get()
+		if c.History == nil || c.HistoryError != "" || len(c.History.Entries) != 0 {
+			t.Fatal(c)
+		}
+	}
+	s.observation.Snapshot.Session.File = &path
+	cutoff := "saved"
+	s.observation.Snapshot.Session.Cutoff = &cutoff
+	if c := get(); c.History != nil || c.HistoryError == "" {
+		t.Fatal("missing saved history concealed", c)
+	}
+	if err := os.WriteFile(path, []byte(`{"type":"session","version":3,"id":"session"}`+"\n"+`{"type":"message","id":"saved","parentId":null,"message":{"role":"user","content":"first"}}`+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if c := get(); c.History == nil || c.HistoryError != "" || len(c.History.Entries) != 1 {
+		t.Fatal(c)
+	}
+}
 func TestConversationHistoryAndProvisionalUseOneCutoff(t *testing.T) {
 	s, path := webFixture(t)
 	h := appFor(t, s)
