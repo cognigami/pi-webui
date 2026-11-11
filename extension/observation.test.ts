@@ -197,6 +197,61 @@ test("message_end stays provisional; confirmed turn replaces it with persisted I
   assert.deepEqual(v.persistedIds, ["saved-assistant", "saved-tool"]);
   assert.deepEqual(v.provisional, { message: null, tools: [] });
 });
+test("pending navigation withholds old history and provisional output", () => {
+  const h = host(),
+    o = new Observation(h.ctx, h.pi);
+  o.observeMessage({
+    type: "message_start",
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "old branch" }],
+    },
+  } as never);
+  o.beginNavigation();
+  const pending = o.snapshot();
+  assert.equal(pending.historyReady, false);
+  assert.equal(pending.session.cutoff, null);
+  assert.deepEqual(pending.provisional, { message: null, tools: [] });
+  h.setLeaf("new-branch");
+  o.navigate();
+  assert.equal(o.snapshot().historyReady, true);
+  assert.equal(o.snapshot().session.cutoff, "new-branch");
+});
+test("safe cutoff includes user before assistant, holds back persisted tool turn, then refreshes later proposals", () => {
+  const h = host(),
+    o = new Observation(h.ctx, h.pi);
+  h.setIdle(false);
+  o.beginTurn();
+  h.setLeaf("saved-user");
+  o.observeMessage({
+    type: "message_start",
+    message: { role: "assistant", content: [] },
+  } as never);
+  h.setLeaf("early-saved-assistant");
+  o.observeMessage({
+    type: "message_end",
+    message: { role: "assistant", content: [] },
+  } as never);
+  assert.equal(o.snapshot().session.cutoff, "saved-user");
+  assert.equal(o.snapshot().turnOpen, true);
+  o.completeTurn("early-saved-assistant", []);
+  assert.equal(o.snapshot().session.cutoff, "early-saved-assistant");
+  h.setLeaf("later-boundary-context-edit");
+  h.setIdle(true);
+  assert.equal(o.snapshot().session.cutoff, "later-boundary-context-edit");
+  o.settled();
+  assert.equal(o.snapshot().turnOpen, false);
+});
+test("extension loaded midturn admits missing state until confirmed resynchronization", () => {
+  const h = host();
+  h.setIdle(false);
+  const o = new Observation(h.ctx, h.pi);
+  assert.equal(o.snapshot().historyReady, false);
+  assert.equal(o.snapshot().session.cutoff, null);
+  h.setLeaf("completed");
+  o.completeTurn("completed", []);
+  assert.equal(o.snapshot().historyReady, true);
+});
 test("oversized persisted-ID samples require explicit resynchronization", () => {
   const h = host(),
     o = new Observation(h.ctx, h.pi);

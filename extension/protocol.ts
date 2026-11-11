@@ -35,6 +35,8 @@ export interface Snapshot extends Target {
   };
   provisional: { message: unknown; tools: unknown[] };
   persistedIds: string[];
+  historyReady: boolean;
+  turnOpen: boolean;
   gap: boolean;
   liveUnavailable?: string;
 }

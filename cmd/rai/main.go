@@ -64,11 +64,15 @@ func run(args []string) error {
 		}
 		defer httpListener.Close()
 		server := bridge.New()
-		httpServer := &http.Server{Handler: web.Diagnostic(server, authority, catalog.Command), ReadHeaderTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second}
+		handler, err := web.App(server, authority, catalog.Command)
+		if err != nil {
+			return err
+		}
+		httpServer := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 30 * time.Second}
 		done := make(chan error, 1)
 		go func() { done <- httpServer.Serve(httpListener) }()
 		go func() { <-ctx.Done(); httpServer.Close() }()
-		log.Printf("RAI diagnostic on http://%s; private bridge %s", authority, c.Socket)
+		log.Printf("RAI on http://%s; private bridge %s", authority, c.Socket)
 		bridgeDone := make(chan error, 1)
 		go func() { bridgeDone <- server.Serve(ctx, l) }()
 		select {

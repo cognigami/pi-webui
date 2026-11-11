@@ -2,7 +2,9 @@
   "$schema": "https://biomejs.dev/schemas/2.6.6/schema.json",
   "files": {
     "includes": [
-      "extension/**/*.ts"
+      "extension/**/*.ts",
+      "internal/web/assets/**/*.js",
+      "internal/web/assets/**/*.css"
     ]
   },
   "formatter": {

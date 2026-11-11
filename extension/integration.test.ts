@@ -51,7 +51,7 @@ test("Go/TS roundtrip, literal controls, restart, fresh identity, and no replay"
       let log = "";
       child.stderr.on("data", (chunk) => {
         log += String(chunk);
-        if (log.includes("RAI diagnostic on")) resolve();
+        if (log.includes("RAI on")) resolve();
       });
       child.once("error", reject);
       child.once("exit", (code) =>
@@ -161,6 +161,41 @@ test("Go/TS roundtrip, literal controls, restart, fresh identity, and no replay"
   );
   assert.deepEqual(texts, [text]);
   assert.equal(editor, "desktop draft");
+  const html = await fetch(`http://127.0.0.1:${port}/`);
+  assert.match(await html.text(), /Message composer/);
+  const bootstrap = await (
+    await fetch(`http://127.0.0.1:${port}/api/bootstrap`)
+  ).json();
+  const browserText = " \nBrowser café 🦉\n  ";
+  const browserRequest = {
+    type: "control",
+    version: 1,
+    requestId: "browser-request",
+    operation: "send",
+    endpointId: observation.endpointId,
+    associationId: observation.associationId,
+    text: browserText,
+  };
+  const sendHTTP = (origin: string) =>
+    fetch(`http://127.0.0.1:${port}/control`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: origin,
+        "X-RAI-CSRF": bootstrap.csrf,
+      },
+      body: JSON.stringify(browserRequest),
+    });
+  assert.equal((await sendHTTP("https://attacker.example")).status, 403);
+  assert.equal(
+    (await (await sendHTTP(`http://127.0.0.1:${port}`)).json()).status,
+    "submitted_unconfirmed",
+  );
+  assert.equal(
+    (await (await sendHTTP(`http://127.0.0.1:${port}`)).json()).status,
+    "rejected",
+  );
+  assert.deepEqual(texts, [text, browserText]);
   assert.equal((await control("stop")).status, "stop_requested");
   assert.equal(aborted, 1);
   assert.equal(editor, "");
@@ -178,7 +213,7 @@ test("Go/TS roundtrip, literal controls, restart, fresh identity, and no replay"
     (await control("send", oldEndpoint, "must not dispatch")).status,
     "rejected",
   );
-  assert.deepEqual(texts, [text]);
+  assert.deepEqual(texts, [text, browserText]);
   assert.equal(aborted, 1);
   client.stop();
   service.kill("SIGTERM");

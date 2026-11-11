@@ -70,10 +70,10 @@ func TestSymlinkIsRejected(t *testing.T) {
 		t.Fatal("accepted symlink")
 	}
 }
-func TestLoopbackOnlyAndUnknownConfig(t *testing.T) {
+func TestPrivateListenerAndUnknownConfig(t *testing.T) {
 	dir := directory(t)
 	path := filepath.Join(dir, "config.json")
-	for _, data := range []string{`{"address":"0.0.0.0"}`, `{"address":"100.64.1.2"}`, `{"unknown":true}`, `{"socket":"relative"}`} {
+	for _, data := range []string{`{"address":"0.0.0.0"}`, `{"address":"8.8.8.8"}`, `{"unknown":true}`, `{"socket":"relative"}`} {
 		os.WriteFile(path, []byte(data), 0600)
 		if _, err := Load(path); err == nil {
 			t.Fatal("accepted", data)
@@ -81,5 +81,19 @@ func TestLoopbackOnlyAndUnknownConfig(t *testing.T) {
 	}
 	if c, err := Load(""); err != nil || c.Address != "127.0.0.1" {
 		t.Fatal(c, err)
+	}
+	for _, address := range []string{"127.0.0.1", "::1", "192.168.1.2", "10.1.2.3", "100.90.1.2", "fd00::1"} {
+		if err := os.WriteFile(path, []byte(`{"address":"`+address+`"}`), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Load(path); err != nil {
+			t.Fatalf("explicit private IP %s: %v", address, err)
+		}
+	}
+	for _, address := range []string{"::", "0.0.0.0", "8.8.8.8", "example.com"} {
+		os.WriteFile(path, []byte(`{"address":"`+address+`"}`), 0600)
+		if _, err := Load(path); err == nil {
+			t.Fatal("wildcard/public/DNS listener accepted", address)
+		}
 	}
 }

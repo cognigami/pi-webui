@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -34,10 +35,11 @@ func Load(path string) (Config, error) {
 			return c, err
 		}
 	}
-	ip := net.ParseIP(c.Address)
-	if ip == nil || !ip.IsLoopback() {
-		return c, errors.New("P2 diagnostic listener must use a loopback IP")
+	ip, err := netip.ParseAddr(c.Address)
+	if err != nil || (!ip.IsLoopback() && !ip.IsPrivate() && !netip.MustParsePrefix("100.64.0.0/10").Contains(ip)) {
+		return c, errors.New("choose an explicit loopback, private LAN, or Tailscale IP; wildcard/public binding is refused")
 	}
+	c.Address = ip.String()
 	if c.Port < 1 || c.Port > 65535 || !filepath.IsAbs(c.Socket) {
 		return c, errors.New("invalid port or absolute socket path")
 	}

@@ -1,14 +1,14 @@
-# RAI bridge prototype
+# RAI · Remote Agent Interface
 
-One Go service and a TypeScript extension inside participating Pi sessions.
-Herdr/tmux retain ownership of Pi. **This is a P2 diagnostic prototype, not the
-tablet application. First-phase live smoke tests passed in disposable macOS
-Herdr/tmux sessions; full bridge acceptance is still pending.**
+One Go service and a small TypeScript extension inside participating Pi sessions.
+The browser provides a session menu, retained conversation history plus ongoing
+output, multiline drafts, Send, and Stop. **No React, separate frontend service,
+database, terminal capture, or automatic Pi launching.** Herdr/tmux own Pi.
 
 ## Build and check
 
-Prerequisites: Go 1.25+, Node 24+, Bun, and Just. Development Pi types are pinned
-to 1.5.2; the extension uses host-provided types and Node built-ins, not a second Pi runtime.
+Prerequisites: Go 1.25+, Node 24+, Bun, and Just. Pi extension types are pinned to
+1.5.2; the running extension uses its host's public API and Node built-ins.
 
 ```sh
 bun install --frozen-lockfile
@@ -17,130 +17,166 @@ just lint
 just test
 ```
 
-Pi's `build`, `lint`, `test`, and `deps` tools use the same package/Justfile
-workflows. Build produces `bin/rai` and type-checks the extension. Lint formats
-Go/TS and checks both. Tests use synthetic data, fake Pi contexts, private
-repo-local sockets, and the real service; **they do not prove Pi concurrency,
-multiplexer integration, or tablet behavior**. Run build before tests.
+Pi's `build`, `lint`, `test`, and `deps` tools use these same workflows. Build
+produces `bin/rai` with embedded HTML/CSS/JavaScript and type-checks the extension.
+Test builds the current executable, runs race-enabled Go tests, then Node
+extension/client-state/DOM tests. `linkedom` is a development-only DOM fixture,
+not a production browser dependency. Temporary test files are repo-local under
+ignored `.rai-investigation/`.
 
-Focused checks: `just test ./internal/bridge`,
-`just test extension/observation.test.ts`, `just lint extension/index.ts`.
-Test automatically builds the current executable, including for focused extension
-checks. Temporary build/test files stay under ignored `.rai-investigation/`.
+Focused examples: `just test internal/history`, `just test internal/web`,
+`just test internal/web/assets/client.test.js`, `just lint extension/index.ts`.
 
-## Service / local diagnostic client
+## Run
 
-`./bin/rai serve` defaults to `127.0.0.1:8484` and
-`~/.local/state/rai/bridge.sock`. It does not launch or install into Pi.
-Optional `-config PATH` reads JSON; [example](configs/example.json) uses defaults.
-Fields: `address` (literal loopback IP), `port`, and `socket` (absolute path).
+```sh
+./bin/rai serve
+```
 
-The socket's directory must be user-owned mode 0700 without symlink components;
-the socket is mode 0600. Startup refuses any existing socket path. After a crash,
-confirm that its service stopped before manually removing that exact abandoned
-socket. Normal graceful shutdown removes the service-owned socket.
+Open **http://127.0.0.1:8484**. The first view is the session list. Sessions
+without the extension appear as **Integration unavailable** where discovery can
+identify them; installing a file does not attach it to a running Pi.
 
-Read-only HTTP diagnostics, with exact Host/Origin checking:
+**The service does not install/reload into existing sessions.** For an operator-
+chosen **new** interactive Pi session, use its supported explicit extension load:
 
-- `GET /health`
-- `GET /sessions` — existing labels, participation, independent discovery failures
-- `GET /sessions/ENDPOINT_ID` — one bounded current observation
+```sh
+pi --presets:preset eng -e /absolute/path/to/pi-webui/extension/index.ts
+```
 
-No HTTP Send/Stop endpoint, browser UI, history reader, automatic remote resource
-loading, LAN/public binding, authentication, or transcript/input logging is present.
-Do not expose this prototype via a proxy; P5 must implement the browser control
-boundary before LAN/Tailscale access.
+No regular-session installation/reload is implied by building or starting RAI.
+Use Pi's supported configuration/package mechanism only when you explicitly
+choose regular installation. Only interactive TUI mode participates.
 
-Local controls use the **private socket only**. Copy a freshly verified
-`endpointId` / `associationId` from diagnostics, never a label or pane ID:
+The default bridge socket is `~/.local/state/rai/bridge.sock`. Its directory must
+be user-owned mode 0700 without symlink components; the socket is mode 0600.
+Startup refuses any existing socket path. After a crash, confirm its service is
+stopped before removing that exact abandoned socket. Graceful shutdown removes
+the service-owned socket.
+
+### Configuration and tablet access
+
+`./bin/rai serve -config PATH` reads JSON with `address`, `port`, and optional
+absolute `socket`. See [loopback example](configs/example.json). Defaults are
+`127.0.0.1:8484` and the private socket above.
+
+For tablet access, explicitly choose **the host's private LAN or Tailscale IP**,
+then browse to that exact IP and port on the tablet. For example:
+
+```json
+{"address":"100.90.1.2","port":8484}
+```
+
+That IP must belong to your host. Wildcard/public binding is refused. There is
+**no login or TLS**: expose only to a trusted LAN/Tailscale network and apply
+appropriate firewall controls. Origin/Host/CSRF checks are not authentication
+against another untrusted LAN client. A proxy/alternate hostname/HTTPS origin is
+not configured by this literal-IP deployment surface; do not expose it publicly.
+
+When overriding `socket`, give participating Pi processes the same
+`RAI_SOCKET=/absolute/private/bridge.sock` environment value. Starting/stopping
+RAI never starts/stops Pi. Ctrl-C or SIGTERM stops only RAI-owned work.
+
+## Browser behavior
+
+- Select by existing labels plus context; labels never become control targets.
+  Discovery, connection, history, and activity failures stay distinct. An old
+  selection never silently redirects to another process after it disappears.
+- Read the current retained `parentId` ancestry, including stored compaction
+  originals. Load older bounded pages and expand full retained entries. Thinking
+  and tools have independent individual/bulk disclosures. Unknown content and
+  unavailable sources are explicit.
+- Ongoing assistant/tool content is provisional. Confirmed persisted IDs and a
+  safe cutoff replace it together; `message_end`, text matching and timers are
+  not persistence evidence. Reading older content does not force-follow new
+  output; **Go to latest** explicitly resynchronizes an over-one-page update gap.
+- Drafts and temporary receipts live only in this page's memory, keyed by the
+  original conversation association. Close hides a draft; Clear discards it.
+  Reload/closure loses them. A changed conversation requires explicit review
+  before reusing an old draft. A runtime replacement may require selecting the
+  new target explicitly; old drafts remain reviewable rather than redirected.
+- Send preserves exact nonempty Unicode text and uses ordinary Pi steering,
+  without reading/submitting/clearing the desktop draft. It collapses the
+  composer and dismisses the keyboard. Its honest result is **Submitted;
+  acceptance unconfirmed**, not an invented Sent/queued receipt.
+- Lost/failed Send retains exact text/recipient for deliberate review/reuse.
+  There is no automatic control retry or replay. Persistent Send uncertainty
+  and Stop feedback can coexist; Stop does not wait for Send's result.
+- Stop uses `ctx.abort(); ctx.ui.setEditorText("")`. It may discard desktop text
+  restored from queued input. A remote draft is untouched. **Stop requested**
+  is dispatch evidence, not a guarantee that all work/independent workers ended.
+- Idle is not a task-completion or safe-shutdown verdict.
+
+All content is rendered through inert DOM text/code, without active HTML,
+terminal controls or automatic remote images/resources. Same-origin requests and
+per-start CSRF protection guard POST controls; no permissive CORS or control GET.
+
+## Validation and known limits
+
+First-phase real-Pi smoke tests passed on macOS x86_64, Pi 1.5.2, Herdr 0.9.3,
+and tmux 3.7b: Send/reply, draft preservation, queued-steering discard/Stop,
+identity invalidation, duplicate/renamed labels, unsupported extension dialogs,
+missing-extension discovery and one joint service restart without observed
+replay. A real Node-host tmux discovery omission was fixed and rechecked.
+
+History/projection, browser request security, drafts/receipts, DOM rendering and
+client interactions have synthetic tests and independent source reviews. The
+Go/TS fixture exercises the real service, literal HTTP controls, duplicate-ID
+rejection, restart and stale targets. **DOM geometry is synthetic: actual browser
+scrolling, a real tablet/software keyboard, and full live history reconciliation
+have not been accepted yet.** No real-browser automation tool was available.
+The operator explicitly deferred the broad second smoke phase to proceed with
+history/UI implementation; untested cases are not silently called passed.
+
+Remaining limits:
+
+- Delayed Send-after-Stop and settlement-deferred Send/navigation races were
+  explicitly accepted. Normal held-input navigation rejection was live-checked;
+  the settlement-deferred race was not reproduced by the smoke fixture. There
+  is no atomic targeting/acceptance guarantee beyond the available API.
+- Observed manual compaction conservatively disables Send until an authoritative
+  later agent event or explicit reload. A later extension cancelling navigation
+  can likewise require resynchronization. Built-in terminal-only dialogs and
+  nested ownership are not fully observable/validated; no terminal fallback.
+- Extension load midturn cannot recover output before it loaded; history is
+  withheld until an authoritative boundary. Older bridge versions lacking
+  `historyReady` require an explicit extension reload for history support.
+- Discovery covers inherited/default mux servers. Node-host tmux candidates use
+  tty-scoped exact foreground `pi` process metadata, never terminal/title
+  scraping. Other launchers/nesting can remain unidentifiable. Ambiguous
+  ownership disables browser controls.
+- Reader bounds: 64 MiB source file, 16 MiB record, 100,000 entries and 1,024
+  remembered associations. Unsupported sizes/formats, malformed completed
+  records, unavailable/replaced/truncated sources are explicit errors. Reads
+  never migrate, repair, or write the source. The reader assumes Pi's normal
+  append-only writer; arbitrary concurrent same-inode/same-size overwrites are
+  not transactionally protected. Expansion transfers up to 64 KiB
+  per chunk; pages contain at most 32 entries / 256 KiB. Large entries are
+  deferred, not silently truncated. A changed source needs a fresh association.
+- Bridge bounds: 256 KiB provisional content, 64 tools and 1 MiB frames; overflow
+  is explicit. Control IDs are connection-local and capped at 1,024 operations;
+  reconnect is required on exhaustion. No permanent receipt/archive store.
+- Linux, real-Pi slow readers/response loss/manual compaction/nesting, leading
+  command cases and real-tablet interaction remain provisional.
+
+The useful next check is a small real-browser conversation loop, with exact
+operator-chosen disposable/new targets if the agent runs it—not another broad
+hour-long smoke gate. See [execution status](docs/execution-plan.md).
+
+## Local diagnostic interface
+
+Read-only: `GET /health`, `/sessions`, `/sessions/ENDPOINT_ID`, and
+`/conversation/ENDPOINT_ID?association=ASSOCIATION_ID`. History expansion is
+ancestry-checked at `/conversation/ENDPOINT_ID/entries/ENTRY_ID?...&offset=N`.
+No browser-provided file paths are accepted. Browser POST `/control` additionally
+requires exact Origin and the current `/api/bootstrap` CSRF token.
+
+The private-socket CLI remains available for operator-chosen targets:
 
 ```sh
 printf '%s' 'exact message text' | ./bin/rai send -endpoint ENDPOINT_ID -association ASSOCIATION_ID
 ./bin/rai stop -endpoint ENDPOINT_ID -association ASSOCIATION_ID
 ```
 
-Pass `-config PATH` to both service and client when overriding defaults.
-Send preserves stdin bytes as UTF-8 text, including whitespace/newlines; it
-rejects whitespace-only or over-128-KiB input. There is no automatic retry.
-Results are **Submitted; acceptance unconfirmed**, **Stop requested**, rejected
-before dispatch, or outcome unknown. A void Pi API return is not acceptance.
-After uncertain results, check Pi before deliberately sending again.
-
-## Extension load boundary
-
-**The first disposable live phase was explicitly authorized and completed.
-Further live phases need an agreed bounded scope. Do not load/reload into existing
-coordinator, worker, or production sessions.** With authorization, a *new disposable*
-interactive Pi can use its supported `-e /absolute/path/to/extension/index.ts`
-option and `RAI_SOCKET=/absolute/private/bridge.sock` for an isolated test service.
-Nothing here automatically modifies Pi settings or installed extensions.
-Pi's supported discovery/package mechanism can be selected by the operator
-only after validation; copying a file does not attach it to running sessions.
-
-Only interactive TUI mode participates, because the inspected Stop path is
-`ctx.abort(); ctx.ui.setEditorText("")`. Stop may discard the desktop editor's
-restored queued text/draft, does not terminate Pi, and does not promise to cancel
-independent workers. Ordinary Send never reads/submits/clears the desktop draft.
-Stopping the RAI service with Ctrl-C or SIGTERM closes only RAI-owned sockets;
-Pi remains independently owned by its multiplexer.
-
-## Live smoke coverage
-
-Tested on macOS x86_64 with Pi 1.5.2, Herdr 0.9.3 and tmux 3.7b:
-
-- Both backends: real Send produced a saved user message and `RAI_OK` response.
-  Unicode/multiline/whitespace plus an **embedded** command-looking line reached
-  an ordinary input hook unchanged; the desktop draft remained untouched.
-- A benign waiting tool plus queued steering was interrupted by Stop. Observed
-  tool cancellation, empty pending queue/editor, and no queued user message in
-  the active ancestry corroborated the dispatch result. Pi stayed alive.
-- Navigation during held input was rejected by Pi; after release, navigation,
-  reload, and fork invalidated old associations/endpoints. Duplicate/renamed
-  labels did not redirect controls. Extension dialogs rejected Send.
-- Service absence/restart preserved the four observed Pi PIDs/session IDs/input
-  counts and established fresh endpoints, with no observed replay in that run.
-- Missing-extension discovery worked for Herdr. A demonstrated tmux Node-host
-  discovery omission was fixed using tty-scoped foreground process metadata,
-  then checked against the actual disposable Pi without the RAI extension.
-
-Independent correctness review accepted these as **bounded smoke evidence**, not
-full P2 acceptance. See the [execution results](docs/execution-plan.md#current-execution-result-and-live-gate)
-for limitations, phase scope, and cleanup. No regular-session installation occurred.
-
-## Current limits and gate
-
-- Operator accepted delayed Send-after-Stop and the settlement-deferred
-  Send/navigation race. Pi 1.5.2's normal async-input preflight navigation
-  reservation was source-inspected and checked with held-input navigation.
-  The settlement-deferred race was not reproduced by the smoke fixture; no
-  atomic-targeting guarantee is claimed.
-- Before-tree invalidation rejects stale/transition controls without vetoing
-  desktop navigation. If a later extension cancels navigation, RAI stays
-  conservatively unavailable until a later agent lifecycle event or explicit
-  reload resynchronizes it.
-- Observed manual compaction disables Send. Success is not a public settled
-  boundary, so a later agent start/settlement or explicit reload is required
-  before Send is re-enabled. Stop remains available. Built-in terminal-only
-  dialogs are not fully observable; unrecognized rejection stays unconfirmed.
-- Extension UI prompts disable Send; historical prompts do not assert current
-  pending input. `pending` is the public aggregate, not a complete TUI queue view.
-- Discovery covers the service's inherited/default Herdr/tmux servers. Nested
-  inherited contexts are explicitly ambiguous, not guessed ownership.
-  Unintegrated tmux discovery uses command `pi`, or for Node hosts an exact
-  foreground `pi` process on that pane's tty. Other launchers/nesting may remain
-  unidentifiable. No directory, terminal-title, or terminal-output inference.
-- Observations are bounded (256 KiB current turn, 64 tools, 1 MiB wire frames);
-  gaps and unavailable live content are explicit. Reconnect gets fresh endpoint
-  identity and a snapshot, never replayed commands. Control IDs are transient,
-  capped per connection; after 1024 local operations, reconnect is required.
-  Persisted tool-ID samples above 128 IDs are explicitly unavailable, not silently partial.
-- Only a small ancestry sample and conservative lower-bound cutoff are present.
-  Later Pi boundary-handler proposals can extend the leaf beyond that cutoff;
-  P3 must reconcile that persisted tail. Retained history, coherent browser
-  history/provisional reconciliation, full UI, and drafts are not implemented.
-
-**Next gate:** agree the next bounded P2 live-acceptance phase for leading command
-input, manual compaction, nesting and response loss/backpressure. These were not
-passed by the first smoke phase. History/live reconciliation follows P3 implementation. Linux and all
-browser/tablet behavior remain provisional. P3 fixture preparation is allowed,
-but P3 integrated acceptance and P4/P5 UI work remain gated. See [execution status](docs/execution-plan.md#current-execution-result-and-live-gate).
+Use freshly verified opaque IDs, never labels/panes. Pass `-config PATH` to both
+service and CLI for overridden defaults. Send accepts at most 128 KiB of text.

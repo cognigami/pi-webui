@@ -50,6 +50,8 @@ type Snapshot struct {
 	Provisional     json.RawMessage `json:"provisional"`
 	PersistedIDs    []string        `json:"persistedIds"`
 	Gap             bool            `json:"gap"`
+	HistoryReady    bool            `json:"historyReady"`
+	TurnOpen        bool            `json:"turnOpen"`
 	LiveUnavailable string          `json:"liveUnavailable,omitempty"`
 }
 type Control struct {

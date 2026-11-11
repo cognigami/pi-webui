@@ -16,6 +16,7 @@
     "@biomejs/biome": "^2.6.6",
     "@earendil-works/pi-coding-agent": "1.5.2",
     "@types/node": "24",
+    "linkedom": "^0.18.15",
     "typescript": "^7.0.2"
   }
 }

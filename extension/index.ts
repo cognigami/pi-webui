@@ -42,6 +42,9 @@ export class Observation {
   prompt = "";
   manualCompaction = false;
   navigating = false;
+  historyReady = true;
+  turnOpen = false;
+  private assistantStarted = false;
   private overflow = false;
   ctx: ExtensionContext;
   private readonly pi: Pick<ExtensionAPI, "sendUserMessage">;
@@ -52,8 +55,13 @@ export class Observation {
     this.ctx = ctx;
     this.pi = pi;
     this.cutoff = ctx.sessionManager.getLeafId();
-    if (!ctx.isIdle())
-      this.unavailable = "Live output before extension load unavailable.";
+    if (!ctx.isIdle()) {
+      this.turnOpen = true;
+      this.historyReady = false;
+      this.cutoff = null;
+      this.unavailable =
+        "Live output before extension load unavailable; history resynchronizes at a confirmed turn boundary.";
+    }
   }
   reconnect() {
     this.endpointId = randomUUID();
@@ -62,12 +70,31 @@ export class Observation {
   beginNavigation() {
     this.associationId = randomUUID();
     this.navigating = true;
+    this.historyReady = false;
+    this.cutoff = null;
+    this.reset();
+    this.unavailable =
+      "Conversation navigation pending; old branch content is not current.";
   }
   navigate() {
     this.navigating = false;
     this.associationId = randomUUID();
     this.cutoff = this.ctx.sessionManager.getLeafId();
+    this.turnOpen = false;
+    this.historyReady = true;
     this.reset();
+  }
+  beginTurn() {
+    this.reset();
+    this.turnOpen = true;
+    this.assistantStarted = false;
+    if (this.historyReady) this.cutoff = this.ctx.sessionManager.getLeafId();
+  }
+  settled() {
+    this.reset();
+    this.turnOpen = false;
+    this.historyReady = true;
+    this.cutoff = this.ctx.sessionManager.getLeafId();
   }
   reset() {
     this.message = null;
@@ -78,6 +105,8 @@ export class Observation {
   }
   completeTurn(messageEntryId: string, toolResultEntryIds: string[]) {
     this.reset();
+    this.turnOpen = false;
+    this.historyReady = true;
     this.cutoff = this.ctx.sessionManager.getLeafId();
     if (toolResultEntryIds.length > 128) {
       this.overflow = true;
@@ -88,6 +117,17 @@ export class Observation {
     this.persistedIds = [messageEntryId, ...toolResultEntryIds];
   }
   observeMessage(event: MessageEvent) {
+    // At assistant start, earlier user/system messages are already persisted.
+    // Never advance into this assistant/tool turn from message_end.
+    if (
+      event.type === "message_start" &&
+      event.message.role === "assistant" &&
+      !this.assistantStarted
+    ) {
+      this.assistantStarted = true;
+      this.historyReady = true;
+      this.cutoff = this.ctx.sessionManager.getLeafId();
+    }
     if (!this.overflow && event.message.role === "assistant") {
       this.message = event.message;
       this.bound();
@@ -118,6 +158,15 @@ export class Observation {
   }
   snapshot(): Snapshot {
     const sm = this.ctx.sessionManager;
+    // Authoritative idle reads include entries committed by later boundary hooks.
+    // Elapsed time and message_end are never used as persistence evidence.
+    if (
+      this.historyReady &&
+      !this.turnOpen &&
+      !this.navigating &&
+      this.ctx.isIdle()
+    )
+      this.cutoff = sm.getLeafId();
     const sample: Snapshot["session"]["sample"] = [];
     let id = sm.getLeafId();
     for (let n = 0; id && n < 8; n++) {
@@ -178,6 +227,8 @@ export class Observation {
       },
       provisional: { message: this.message, tools: [...this.tools.values()] },
       persistedIds: this.persistedIds,
+      historyReady: this.historyReady,
+      turnOpen: this.turnOpen,
       gap: this.overflow,
       liveUnavailable: this.unavailable || undefined,
     };
@@ -309,6 +360,7 @@ export default function rai(pi: ExtensionAPI) {
     if (o) {
       if (o.navigating) o.navigate();
       o.manualCompaction = false;
+      o.settled();
     }
     publish();
   });
@@ -323,7 +375,7 @@ export default function rai(pi: ExtensionAPI) {
     publish();
   });
   pi.on("turn_start", (_event, ctx) => {
-    context(ctx)?.reset();
+    context(ctx)?.beginTurn();
     publish();
   });
   const message = (event: MessageEvent, ctx: ExtensionContext) => {

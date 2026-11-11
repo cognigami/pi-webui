@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RAI · Conversations</title>
+<link rel="stylesheet" href="/style.css">
+<script type="module" src="/app.js"></script>
+</head>
+<body>
+<main id="app">
+<header>
+<button id="sessions-button" aria-controls="sessions" aria-expanded="false">☰ Sessions</button>
+<div class="heading"><h1 id="recipient">Choose a session</h1><p id="activity">No session selected</p></div>
+<button id="view-button" aria-controls="view-menu" aria-expanded="false">View</button>
+<button id="details-button" aria-controls="details" aria-expanded="false">Details</button>
+</header>
+<section id="details" hidden aria-label="Session details"></section>
+<nav id="view-menu" hidden aria-label="Conversation view">
+<button data-bulk="tools:true">Expand all tools</button><button data-bulk="tools:false">Collapse all tools</button>
+<button data-bulk="thinking:true">Expand all thinking</button><button data-bulk="thinking:false">Collapse all thinking</button>
+</nav>
+<div id="connection" role="status" hidden></div>
+<div id="conversation-notice" role="status" hidden></div>
+<section id="history" aria-label="Conversation" tabindex="0">
+<button id="older" hidden>Load older messages</button>
+<p id="history-health">Choose a running Pi session to catch up.</p>
+<div id="messages"></div>
+<div id="provisional" aria-label="Ongoing output"></div>
+</section>
+<button id="latest" hidden>New content below · Go to latest</button>
+<footer>
+<div id="feedback"></div>
+<div class="footer-actions"><button id="message-button">Message…</button><button id="review-button" hidden>Review message</button><button id="stop-button" disabled>Stop</button></div>
+<section id="composer" hidden aria-label="Message composer">
+<label for="draft">Message</label>
+<textarea id="draft" rows="4" placeholder="Message…" spellcheck="true"></textarea>
+<p id="draft-error" class="error" role="status"></p>
+<div class="footer-actions"><button id="clear-button">Clear</button><button id="close-button">Close</button><button id="send-button" disabled>Send</button></div>
+</section>
+</footer>
+<dialog id="sessions" aria-labelledby="sessions-title">
+<div class="dialog-heading"><h2 id="sessions-title">Sessions</h2><button id="sessions-close">Close</button></div>
+<p id="discovery-health">Loading sessions…</p><div id="session-list"></div>
+</dialog>
+<dialog id="review" aria-labelledby="review-title">
+<div class="dialog-heading"><h2 id="review-title">Review messages and drafts</h2><button id="review-close">Close</button></div>
+<div id="review-content"></div>
+</dialog>
+<div id="announcements" class="sr-only" aria-live="polite"></div>
+</main>
+</body>
+</html>
