@@ -36,8 +36,10 @@ The list is for running sessions, not a browser of archived conversations. If di
 ## 3. Information architecture and layout
 
 **Visual direction:** Dreamcoat-derived private working instrument, not official
-branding or presentation-scale Quantum Lab styling. Cream chrome/ground, white
-reading/input/assistant surfaces, Sand user messages, Thistle text, Google Sans
+branding or presentation-scale Quantum Lab styling. The operator's current
+preview uses Sand chrome/ground and Cream user/assistant cards, with white input/
+control surfaces and modest matching Send corners rather than a pill. Thistle
+text, Google Sans
 normal/italic locally served under OFL, and a compact yellow Send with dark text.
 Blue focus/selection, opaque Phacelia control outlines, restrained Fuchsia Stop/
 errors, and Buckwheat warnings. Keep 16px body, 44px targets and moderate spacing;

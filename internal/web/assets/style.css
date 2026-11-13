@@ -17,9 +17,10 @@
   font-family: "Google Sans", system-ui, sans-serif;
   font-size: 16px;
   font-weight: 400;
-  --ground: #fcf7e4;
-  --surface: #ffffff;
   --sand: #fcf2d5;
+  --cream: #fcf7e4;
+  --ground: var(--sand);
+  --surface: #ffffff;
   --morning-glory: #f3e4d7;
   --text: #362f4e;
   --muted: #595959;
@@ -159,7 +160,7 @@ article {
   padding: 0.7rem 0.95rem;
   border: 1px solid var(--border);
   border-radius: 0.75rem;
-  background: var(--surface);
+  background: var(--cream);
   overflow-wrap: anywhere;
 }
 article h2 {
@@ -169,9 +170,6 @@ article h2 {
   line-height: 1.5;
   margin: 0 0 0.45rem;
   color: var(--text);
-}
-article[data-role="user"] {
-  background: var(--sand);
 }
 article p {
   margin: 0.4rem 0;
@@ -348,7 +346,6 @@ footer > .footer-actions {
 }
 #send-button {
   margin-left: auto;
-  border-radius: 999px;
 }
 #send-button:not(:disabled) {
   border-color: var(--control-border);

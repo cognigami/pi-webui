@@ -272,6 +272,10 @@ The operator approved the Dreamcoat private-tool treatment with the three UI rev
 
 The designer independently inspected rendered captures and coordinator JS/server changes, clearing the two concrete focus/layout corrections. Ordinary build/lint/test passed. Physical tablet touch/software keyboard, true browser zoom and full live history reconciliation remain provisional. All three coordinator-created fixture tabs were closed after capture; the user-owned UI designer session was not closed or otherwise managed. Final checks passed: build/lint, race-enabled Go packages and46 Node checks.
 
+### Palette preview refinement
+
+After seeing the running style, the operator explicitly requested Sand rather than white for the background, agreed to modest Send corners, and asked to see Cream cards. The current preview sets the ground to canonical Sand (#FCF2D5), both message-card roles to Cream (#FCF7E4), and Send inherits the ordinary0.55rem control radius. White input/control surfaces, type, spacing,44px targets and behavior are unchanged. Updated representative screenshots use the same synthetic Chrome conversation; desktop/tablet checks and ordinary build/lint/test pass. The combination remains for operator visual judgment, not a new design-system requirement. Existing configs/lan.json was user work and was not changed or included in this UI commit.
+
 ### Deferred follow-up: SSH tunnel access
 
 The operator reports **Host not permitted** when accessing RAI through an SSH tunnel; currently they must remote-view the host machine to use the page. Record this as an unresolved access defect, not a requirement to use remote desktop. No tunnel/configuration/security changes were requested for this turn.

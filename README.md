@@ -109,7 +109,8 @@ RAI never starts/stops Pi. Ctrl-C or SIGTERM stops only RAI-owned work.
 
 ## Visual treatment
 
-Dreamcoat-derived **private-tool** styling: Cream/Sand/white surfaces, plum text,
+Dreamcoat-derived **private-tool** styling: Sand background, Cream message cards,
+white input/control surfaces, plum text,
 locally bundled Google Sans, and one yellow Send action. It is not official Google
 branding. No artwork, texture, animation, external font request or new frontend
 framework. Code retains the system monospace stack. The fonts' OFL license is
