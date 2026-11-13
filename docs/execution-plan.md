@@ -234,6 +234,21 @@ Address/port were already explicit JSON configuration via `rai serve -config PAT
 
 Build/lint/test passed, including 44 Node checks and race-enabled Go tests. This incremental UI deletion/configuration-guide change did not start/reload/control any user Pi session, alter network/firewall settings or claim actual tablet/LAN acceptance. An RAI-only restart loads the rebuilt UI; the operator chooses the LAN IP/configuration. SSH-tunnel authority support remains a separate unresolved follow-up below.
 
+### Requested UI design review — recommendations, not implementation authorization
+
+The operator requested review with their UI design agent `01a1d587-c404-741f-93f4-b2167e31540d`. That agent performed read-only source/fixture review; no rendered/browser/tablet evidence, live endpoints/conversations, tests, deployment or file changes. The coordinator independently checked the relevant renderer/header code and discussed the findings with the designer.
+
+Agreed minimal direction: **refine the existing light, moderately dense conversation UI, not redesign it**. Preserve current type/touch sizes, palette, one textarea with Send/Stop, connected-only chooser, quiet ordinary dispatch, hidden internal records, explicit errors, independent disclosures and deliberate older/latest navigation. No restoration of Review/draft recovery or diagnostic panels.
+
+Recommended next implementation, pending operator direction:
+
+1. Keep concise recipient-disambiguating context in the selected header, particularly for equal labels with different reachable contexts. The chooser currently has context but the closed header retains only the label; this is presentation ambiguity, not evidence of incorrect dispatch targeting.
+2. Keep unchanged completed-history nodes intact during provisional-only updates. Current replaceChildren removes native-summary/load-button focus and risks text-selection disruption; exact browser selection behavior is unverified. Add keyed focus restoration for those controls when retained history actually changes. No framework/virtual-DOM rewrite.
+3. Use plain Idle / Working / Waiting for input / Activity unknown labels, retain real freshness/error/gap warnings, and hide ordinary healthy history/persistence explanations. Keep idle-not-completion semantics in docs rather than a permanent caveat. Move opaque nested parent IDs inside the existing tool disclosure, without hiding meaningful boundaries/errors.
+4. Before further density changes, agree a small synthetic rendered tablet/keyboard-open/200%-zoom check: long duplicate names/context, conversation/code/tool content, multiline input and one inline failure. Verify scrolling, reachable Send/Stop, no page-width overflow, focus/selection and latest behavior. This is proposed visual acceptance, not an observed geometry defect or renewed broad live-Pi gate.
+
+The repeated Connected badge is optional polish only; do not shrink name/context text further to compensate. No UI code/runtime changes were made for this review; only this durable review note was recorded.
+
 ### Deferred follow-up: SSH tunnel access
 
 The operator reports **Host not permitted** when accessing RAI through an SSH tunnel; currently they must remote-view the host machine to use the page. Record this as an unresolved access defect, not a requirement to use remote desktop. No tunnel/configuration/security changes were requested for this turn.
