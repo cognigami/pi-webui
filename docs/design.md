@@ -35,16 +35,17 @@ The list is for running sessions, not a browser of archived conversations. If di
 
 ## 3. Information architecture and layout
 
-**Visual direction:** Dreamcoat-derived private working instrument, not official
-branding or presentation-scale Quantum Lab styling. The operator's current
-preview uses Sand chrome/ground and Cream user/assistant cards, with white input/
-control surfaces and modest matching Send corners rather than a pill. Thistle
-text, Google Sans
-normal/italic locally served under OFL, and a compact yellow Send with dark text.
-Blue focus/selection, opaque Phacelia control outlines, restrained Fuchsia Stop/
-errors, and Buckwheat warnings. Keep 16px body, 44px targets and moderate spacing;
-no artwork, texture, display-scale headings, new framework or remote resources.
-Code alone uses system monospace.
+**Visual direction:** Operator-approved warm-neutral private working instrument,
+not official branding or presentation-scale styling. The earlier Dreamcoat
+palette was too intense; a neutral report reference then needed a little warmth
+back. The approved middle uses warm light-gray ground (#F5F3EE), near-white
+cards/chrome (#FDFCF9), white input/control surfaces, dark neutral text and quiet
+stone rules. One compact slate Send has white text and modest corners rather
+than a pill. Ordinary Stop/tool controls are neutral; reserve exception colors
+for actual problems. Keep strong control/focus edges, Google Sans normal/italic
+locally served under OFL, 16px body, 44px targets and moderate spacing. No artwork,
+texture, display-scale headings, themes/settings, new framework or remote
+resources. Code alone uses system monospace.
 
 ### 3.1 Conversation screen
 

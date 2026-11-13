@@ -109,15 +109,16 @@ RAI never starts/stops Pi. Ctrl-C or SIGTERM stops only RAI-owned work.
 
 ## Visual treatment
 
-Dreamcoat-derived **private-tool** styling: Sand background/session sheet, Cream
-message/session cards, white input/control surfaces, plum text,
-locally bundled Google Sans, and one yellow Send action. It is not official Google
-branding. No artwork, texture, animation, external font request or new frontend
-framework. Code retains the system monospace stack. The fonts' OFL license is
+Warm-neutral **private-tool** styling: warm light-gray ground, near-white
+message cards/chrome, white input/control surfaces, dark neutral text,
+locally bundled Google Sans, and one restrained slate Send action. This approved
+middle ground replaces the earlier Sand/yellow treatment; it is not official
+Google branding. No artwork, texture, animation, external font request or new
+frontend framework. Code retains the system monospace stack. The fonts' OFL license is
 included and served at `/fonts/GoogleSans-OFL.txt`.
 
-Representative synthetic Chrome captures: [desktop](docs/images/rai-dreamcoat-desktop.png)
-and [tablet-sized](docs/images/rai-dreamcoat-tablet.png). The test content is not a
+Representative synthetic Chrome captures: [desktop at rest](docs/images/rai-warm-neutral-rest.png)
+and [tablet-sized, editor focused](docs/images/rai-warm-neutral-focused.png). The test content is not a
 live Pi conversation.
 
 ## Browser behavior

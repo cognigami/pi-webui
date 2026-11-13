@@ -17,22 +17,22 @@
   font-family: "Google Sans", system-ui, sans-serif;
   font-size: 16px;
   font-weight: 400;
-  --sand: #fcf2d5;
-  --cream: #fcf7e4;
-  --ground: var(--sand);
+  --sand: #ece9e2;
+  --cream: #fdfcf9;
+  --ground: #f5f3ee;
   --surface: #ffffff;
-  --morning-glory: #f3e4d7;
-  --text: #362f4e;
-  --muted: #595959;
-  --border: rgba(54, 47, 78, 0.2);
-  --control-border: #715894;
-  --accent: #1967d2;
-  --danger: #973666;
+  --morning-glory: #eeeae3;
+  --text: #29313b;
+  --muted: #62656a;
+  --border: #ddd9d0;
+  --control-border: #858078;
+  --accent: #405a73;
+  --danger: #9a3e4e;
   --warning: #854d32;
-  --success: #39654f;
-  --yellow: #fbbc04;
-  --yellow-hover: #f9ab00;
-  --ink: #14152d;
+  --success: #62656a;
+  --send: #354b60;
+  --send-hover: #273d52;
+  --send-text: #ffffff;
   color: var(--text);
   background: var(--ground);
 }
@@ -66,7 +66,7 @@ header {
   flex: none;
   padding: 0.55rem 1rem;
   border-bottom: 1px solid var(--border);
-  background: var(--ground);
+  background: var(--cream);
 }
 .heading {
   min-width: 0;
@@ -199,6 +199,7 @@ pre {
   margin: 0.4rem 0;
 }
 .disclosure > button {
+  border-color: var(--border);
   text-align: left;
   width: 100%;
   background: var(--ground);
@@ -279,7 +280,7 @@ article.tool-record {
 #view-menu {
   flex: none;
   padding: 0.85rem 1.25rem;
-  background: var(--ground);
+  background: var(--cream);
   border-bottom: 1px solid var(--border);
   max-height: 25vh;
   overflow: auto;
@@ -298,7 +299,7 @@ footer {
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--border);
-  background: var(--ground);
+  background: var(--cream);
   padding: 0.5rem max(1rem, calc((100% - 54rem) / 2));
   max-height: 55%;
   overflow: auto;
@@ -331,11 +332,11 @@ footer > .footer-actions {
   position: sticky;
   bottom: 0;
   padding-top: 0.35rem;
-  background: var(--ground);
+  background: var(--cream);
 }
 #stop-button:not(:disabled) {
-  border-color: var(--danger);
-  color: var(--danger);
+  border-color: var(--control-border);
+  color: var(--text);
   background: var(--surface);
 }
 #stop-button:hover:not(:disabled) {
@@ -349,12 +350,12 @@ footer > .footer-actions {
 }
 #send-button:not(:disabled) {
   border-color: var(--control-border);
-  background: var(--yellow);
-  color: var(--ink);
+  background: var(--send);
+  color: var(--send-text);
 }
 #send-button:hover:not(:disabled),
 #send-button:active:not(:disabled) {
-  background: var(--yellow-hover);
+  background: var(--send-hover);
 }
 textarea {
   flex: 1 1 auto;
@@ -418,7 +419,7 @@ dialog::backdrop {
   margin: 0;
 }
 #sessions {
-  background: var(--ground);
+  background: var(--cream);
   position: fixed;
   z-index: 10;
   inset: 0 auto 0 0;

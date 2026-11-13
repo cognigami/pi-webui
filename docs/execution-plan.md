@@ -292,6 +292,10 @@ Explicitly requested behavior fixes ARE implemented: the real textarea collapses
 
 The blur/value, folder-context/rename and quiet independent-Stop assertions pass in client tests (the focus shim now dispatches native-like blur transitions). Synthetic Chrome verified collapse/value preservation, human context, quiet feedback, inset focus, reachable controls and no page-width overflow at desktop and tablet-sized viewports; the final compact-field recapture was visually checked for one clean line. Build, lint and full tests passed. No live/private Pi conversation or service configuration was used; only owned temporary fixture tabs were closed. Physical keyboard/touch acceptance remains separate.
 
+### Warm-neutral palette approved and adopted
+
+The operator approved the middle preview: **“Nailed it. Well done.”** The production stylesheet now matches that proposal: warm light-gray ground, near-white cards/chrome, quiet stone boundaries, neutral ordinary controls and a slate Send with white text. Existing inset input focus, blur collapse, folder context and quiet normal dispatch remain. This is the single default palette, not a theme selector. README/design and their representative image links now describe this approved state. The embedded assets were rebuilt and focused CSS/render validation passed; no running RAI/Pi service or user configuration was changed. Restart only RAI when ready to load the rebuilt assets.
+
 ### Deferred follow-up: SSH tunnel access
 
 The operator reports **Host not permitted** when accessing RAI through an SSH tunnel; currently they must remote-view the host machine to use the page. Record this as an unresolved access defect, not a requirement to use remote desktop. No tunnel/configuration/security changes were requested for this turn.
