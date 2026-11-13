@@ -24,6 +24,7 @@ function fixtureDOM() {
     return { top: 0, bottom: 20, height: this.hidden ? 0 : 20 };
   };
   window.HTMLElement.prototype.focus = function () {
+    if (this.disabled) return;
     if (focused !== this) {
       focused = this;
       this.dispatchEvent(new window.Event("focus"));
@@ -247,6 +248,221 @@ test("untouched conversation has one ordinary editor and no draft-management UI"
   $("draft").value = "";
   $("draft").dispatchEvent(new window.Event("input"));
   assert.equal($("send-button").disabled, true);
+});
+test("selected identity stays recognizable and retained history survives streaming/focus changes", {
+  timeout: 15000,
+}, async (t) => {
+  const { document: doc, window, history } = fixtureDOM();
+  const $ = (id) => doc.getElementById(id);
+  const rows = [row("a"), row("b")];
+  rows[0].label = rows[1].label = "Coordinator";
+  rows[0].context = "w1 · p1 · /project-alpha";
+  rows[1].context = "w2 · p2 · /project-beta";
+  let seq = 1,
+    token = "first",
+    app;
+  const records = [
+    {
+      id: "u",
+      parentId: null,
+      type: "message",
+      role: "user",
+      data: {
+        type: "message",
+        message: { role: "user", content: "retained paragraph" },
+      },
+    },
+    {
+      id: "boundary",
+      parentId: "u",
+      type: "compaction",
+      data: { type: "compaction", summary: "retained boundary" },
+    },
+    {
+      id: "deferred",
+      parentId: "boundary",
+      type: "message",
+      role: "toolResult",
+      toolName: "fixture",
+      deferred: true,
+      bytes: 50000,
+    },
+  ];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (url === "/api/bootstrap") return response({ csrf: "a".repeat(64) });
+    if (url === "/sessions")
+      return response({ rows, failures: {}, coverage: [] });
+    if (String(url).startsWith("/conversation/"))
+      return response({
+        observation: {
+          connected: true,
+          snapshot: {
+            ...rows[1].observation.snapshot,
+            seq,
+            state: { activity: "working", pending: false, sendSupported: true },
+            provisional: {
+              message: { role: "assistant", content: token },
+              tools: [],
+            },
+          },
+        },
+        history: { entries: records, before: "" },
+      });
+    throw Error("Unexpected request " + url);
+  };
+  t.after(() => {
+    app?.stopPolling();
+    globalThis.fetch = original;
+  });
+  app = await boot(doc);
+  app.select(rows[1]);
+  const view = app.views.get(conversationKey(rows[1].observation.snapshot));
+  await until(() => view.verified);
+  assert.equal($("recipient").textContent, "Coordinator");
+  assert.equal($("recipient-context").textContent, rows[1].context);
+  assert.equal($("recipient-context").hidden, false);
+  assert.equal($("activity").textContent, "Working");
+  assert.equal($("history-health").hidden, true);
+  const paragraph = $("messages").querySelector("p");
+  const summary = $("messages").querySelector("summary");
+  summary.closest("details").open = true;
+  summary.closest("details").dispatchEvent(new window.Event("toggle"));
+  summary.focus();
+  history.scrollTop = 100;
+  token = "second token";
+  seq++;
+  doc.dispatchEvent(new window.Event("visibilitychange"));
+  await until(() => $("provisional").textContent.includes("second token"));
+  assert.equal($("messages").querySelector("p"), paragraph);
+  assert.equal($("messages").querySelector("summary"), summary);
+  assert.equal(doc.activeElement, summary);
+  assert.equal(history.scrollTop, 100);
+  records.push({
+    id: "next",
+    parentId: "deferred",
+    type: "message",
+    role: "assistant",
+    data: {
+      type: "message",
+      message: { role: "assistant", content: "new retained reply" },
+    },
+  });
+  seq++;
+  doc.dispatchEvent(new window.Event("visibilitychange"));
+  await until(() => $("messages").textContent.includes("new retained reply"));
+  assert.notEqual($("messages").querySelector("summary"), summary);
+  assert.equal(doc.activeElement, $("messages").querySelector("summary"));
+  assert.equal(doc.activeElement.closest("details").open, true);
+  const load = $("messages").querySelector(
+    '[data-focus-key="entry:deferred:load"]',
+  );
+  load.focus();
+  records.push({
+    id: "last",
+    parentId: "next",
+    type: "message",
+    role: "user",
+    data: {
+      type: "message",
+      message: { role: "user", content: "another retained message" },
+    },
+  });
+  seq++;
+  rows[1].label = "Renamed coordinator";
+  rows[1].context = "w2 · p2 · /project-beta-renamed";
+  doc.dispatchEvent(new window.Event("visibilitychange"));
+  await until(() =>
+    $("messages").textContent.includes("another retained message"),
+  );
+  assert.equal(doc.activeElement.dataset.focusKey, "entry:deferred:load");
+  assert.notEqual(doc.activeElement, load);
+  assert.equal($("recipient").textContent, "Renamed coordinator");
+  assert.equal($("recipient-context").textContent, rows[1].context);
+});
+test("deferred expansion keeps its loader focusable then hands off focus without stealing it", {
+  timeout: 10000,
+}, async (t) => {
+  const { document: doc } = fixtureDOM();
+  const $ = (id) => doc.getElementById(id);
+  const target = row("load");
+  const entries = ["first", "second"].map((id) => ({
+    id,
+    type: "message",
+    role: "toolResult",
+    toolName: "fixture",
+    deferred: true,
+    bytes: 50000,
+  }));
+  const pending = new Map();
+  let app,
+    requests = 0;
+  const original = globalThis.fetch;
+  const chunk = (id) => {
+    const data = JSON.stringify({
+      id,
+      type: "message",
+      message: {
+        role: "toolResult",
+        toolName: "fixture",
+        toolCallId: id + "-call",
+        content: [{ type: "text", text: id + " loaded" }],
+      },
+    });
+    return response({ data, next: data.length, done: true });
+  };
+  globalThis.fetch = async (url) => {
+    if (url === "/api/bootstrap") return response({ csrf: "a".repeat(64) });
+    if (url === "/sessions")
+      return response({ rows: [target], failures: {}, coverage: [] });
+    if (String(url).includes("/entries/")) {
+      requests++;
+      const id = String(url).split("/entries/")[1].split("?")[0];
+      return new Promise((resolve) => pending.set(id, resolve));
+    }
+    if (String(url).startsWith("/conversation/"))
+      return response({
+        observation: target.observation,
+        history: { entries, before: "" },
+      });
+    throw Error("Unexpected request " + url);
+  };
+  t.after(() => {
+    app?.stopPolling();
+    for (const [id, resolve] of pending) resolve(chunk(id));
+    globalThis.fetch = original;
+  });
+  app = await boot(doc);
+  app.select(target);
+  await until(
+    () => app.views.get(conversationKey(target.observation.snapshot)).verified,
+  );
+  let loader = $("messages").querySelector(
+    '[data-focus-key="entry:first:load"]',
+  );
+  loader.focus();
+  loader.click();
+  await until(() => pending.has("first"));
+  loader = $("messages").querySelector('[data-focus-key="entry:first:load"]');
+  assert.equal(loader.hasAttribute("disabled"), false);
+  assert.equal(loader.getAttribute("aria-disabled"), "true");
+  assert.equal(doc.activeElement, loader);
+  loader.click();
+  assert.equal(requests, 1);
+  pending.get("first")(chunk("first"));
+  pending.delete("first");
+  await until(() => $("messages").textContent.includes("first loaded"));
+  assert.equal(doc.activeElement.dataset.focusKey, "result:first-call");
+  loader = $("messages").querySelector('[data-focus-key="entry:second:load"]');
+  loader.focus();
+  loader.click();
+  await until(() => pending.has("second"));
+  $("draft").focus();
+  pending.get("second")(chunk("second"));
+  pending.delete("second");
+  await until(() => $("messages").textContent.includes("second loaded"));
+  assert.equal(doc.activeElement, $("draft"));
+  assert.equal(requests, 2);
 });
 test("ordinary submission clears input without adding success feedback to the conversation", {
   timeout: 10000,

@@ -390,6 +390,26 @@ func TestDefaultHTTPPortUsesBrowserCanonicalOrigin(t *testing.T) {
 		t.Fatal("other port accepted", bad.Code)
 	}
 }
+func TestLocalFontsAndLicenseAreEmbeddedWithRestrictedFontPolicy(t *testing.T) {
+	s, _ := webFixture(t)
+	h := appFor(t, s)
+	for _, name := range []string{"GoogleSans-Variable.ttf", "GoogleSans-Italic-Variable.ttf"} {
+		w := call(h, "GET", "/fonts/"+name, "", "", "", testAuthority)
+		if w.Code != 200 || w.Header().Get("Content-Type") != "font/ttf" || w.Body.Len() < 1024 {
+			t.Fatal(name, w.Code, w.Header())
+		}
+		if !strings.Contains(w.Header().Get("Content-Security-Policy"), "font-src 'self';") {
+			t.Fatal("missing local font policy")
+		}
+	}
+	license := call(h, "GET", "/fonts/GoogleSans-OFL.txt", "", "", "", testAuthority)
+	if license.Code != 200 || license.Header().Get("Content-Type") != "text/plain; charset=utf-8" || !strings.Contains(license.Body.String(), "SIL OPEN FONT LICENSE") {
+		t.Fatal("font license unavailable")
+	}
+	if w := call(h, "GET", "/fonts/not-an-asset.ttf", "", "", "", testAuthority); w.Code != 404 {
+		t.Fatal("unlisted font route accepted")
+	}
+}
 func TestEmbeddedBrowserAssetsAndSecurityHeaders(t *testing.T) {
 	s, _ := webFixture(t)
 	h := appFor(t, s)

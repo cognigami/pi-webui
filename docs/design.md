@@ -35,6 +35,15 @@ The list is for running sessions, not a browser of archived conversations. If di
 
 ## 3. Information architecture and layout
 
+**Visual direction:** Dreamcoat-derived private working instrument, not official
+branding or presentation-scale Quantum Lab styling. Cream chrome/ground, white
+reading/input/assistant surfaces, Sand user messages, Thistle text, Google Sans
+normal/italic locally served under OFL, and a compact yellow Send with dark text.
+Blue focus/selection, opaque Phacelia control outlines, restrained Fuchsia Stop/
+errors, and Buckwheat warnings. Keep 16px body, 44px targets and moderate spacing;
+no artwork, texture, display-scale headings, new framework or remote resources.
+Code alone uses system monospace.
+
 ### 3.1 Conversation screen
 
 ```text
@@ -61,7 +70,7 @@ Use this structure on tablet and desktop, widening the conversation rather than 
 
 On first load, show the session list. After selection, show the conversation. The top-left menu button has the accessible label **Sessions** and opens the list as an overlay/drawer. Choosing a session closes it, updates the conversation header, and restores that conversation's draft with the editor initially collapsed. Closing it without choosing leaves the existing conversation unchanged.
 
-The page must remain usable with the software keyboard open: conversation history remains scrollable, no composer or footer action is hidden behind the keyboard, no fixed viewport-height assumption, and no horizontal page scrolling. Code and tool output may scroll horizontally within their own blocks. Opening the session list does not submit or discard a draft.
+The page must remain usable with the software keyboard open: conversation history remains scrollable, no composer or footer action is hidden behind the keyboard, no fixed viewport-height assumption, and no horizontal page scrolling. The footer is shrinkable with a flexible locally scrolling textarea and nonshrinking actions; the live/latest affordance must be included when checking short-viewport allocation, not measured before it appears. Code and tool output may scroll horizontally within their own blocks. Opening the session list does not submit or discard a draft.
 
 ### 3.3 Session list
 
@@ -78,7 +87,7 @@ RAI displays those labels consistently in the session list and conversation head
 
 Use a stable ordering by display label and keep it steady across activity updates. No special coordinator selection step, unread badges, or message counters. If a label changes, update the displayed name without changing the selected target or moving a draft to another session.
 
-The user does not have to understand multiplexers to choose a session. Existing names and brief context distinguish duplicate labels. The top-right Details debug panel and discovery diagnostics were explicitly removed by the operator; do not expose raw endpoint/session metadata in the normal UI. Do not use directory or display name as the send target.
+The user does not have to understand multiplexers to choose a session. Existing names and brief context distinguish duplicate labels, and the selected row's context remains beside/below the header label after the chooser closes. Plain activity is visually separate; no persistent idle-not-completion caveat or observation timestamp is needed. The top-right Details debug panel and discovery diagnostics were explicitly removed by the operator; do not expose raw endpoint/session metadata in the normal UI. Do not use directory or display name as the send target.
 
 The human-readable labels should make the coordinator and other agents recognizable in either multiplexer. A coordinator badge is optional when verified metadata already supplies the role; lack of role metadata does not add a warning or require a new designation workflow.
 
@@ -99,7 +108,8 @@ Presentation:
 - Tool results and thinking blocks start collapsed. Identify thinking only where the saved/live source explicitly exposes it; never infer or generate it. Expanding a block makes its retained content accessible, not silently truncated to the preview.
 - Errors remain visible without opening a successful-looking collapsed card.
 - Unsupported entry types or unavailable content have explicit placeholders rather than fabricated text or silent omission.
-- History loading and history failure have their own states, independent of live activity.
+- History loading and history failure have their own states, independent of live activity. Hide healthy persistence/current-turn explanations; retain useful loading, empty, error and resynchronization text. Nested parent IDs belong inside the existing tool disclosure, not compulsory timeline metadata.
+- Provisional-only updates do not recreate unchanged completed-history nodes, protecting native focus and text selection. An actual retained redraw restores keyed native summaries/load controls. A deferred loader remains focusable while aria-disabled; its existing request guard prevents duplicate fetches. Completion moves focus to the loaded disclosure/summary or a programmatic entry target only when the loader still owns focus, never after the user moved away.
 - Historical approval requests, errors, and waiting messages remain historical. Do not style them as current pending prompts without fresh evidence.
 
 **Expansion controls:** Use the disclosure/accordion pattern, without an exclusive-open restriction. Each tool-result or thinking block has a tappable summary row with a chevron and an expanded/collapsed state. Tap again to collapse; individual blocks are independent. Use real buttons with `aria-expanded` and descriptive labels, not a swipe gesture that conflicts with scrolling or text selection.

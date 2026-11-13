@@ -118,6 +118,7 @@ test("tool error remains visible with result collapsed; full text available when
         role: "toolResult",
         toolName: "test",
         toolCallId: "call",
+        parentToolCallId: "parent-call",
         isError: true,
         content: [{ type: "text", text: "retained full result" }],
       },
@@ -131,6 +132,17 @@ test("tool error remains visible with result collapsed; full text available when
     "false",
   );
   assert.equal(article.querySelector(".disclosure-body").hidden, true);
+  assert.match(
+    article.querySelector(".disclosure-body").textContent,
+    /parent-call/,
+  );
+  assert.equal(
+    [...article.children].some(
+      (node) =>
+        node.tagName === "P" && node.textContent.includes("parent-call"),
+    ),
+    false,
+  );
   article.querySelector("button").click();
   assert.equal(changed, 1);
   const expanded = renderRecord(document, view, entry, helpers);

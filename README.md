@@ -107,9 +107,22 @@ When overriding `socket`, give participating Pi processes the same
 `RAI_SOCKET=/absolute/private/bridge.sock` environment value. Starting/stopping
 RAI never starts/stops Pi. Ctrl-C or SIGTERM stops only RAI-owned work.
 
+## Visual treatment
+
+Dreamcoat-derived **private-tool** styling: Cream/Sand/white surfaces, plum text,
+locally bundled Google Sans, and one yellow Send action. It is not official Google
+branding. No artwork, texture, animation, external font request or new frontend
+framework. Code retains the system monospace stack. The fonts' OFL license is
+included and served at `/fonts/GoogleSans-OFL.txt`.
+
+Representative synthetic Chrome captures: [desktop](docs/images/rai-dreamcoat-desktop.png)
+and [tablet-sized](docs/images/rai-dreamcoat-tablet.png). The test content is not a
+live Pi conversation.
+
 ## Browser behavior
 
 - Select by existing labels plus context; labels never become control targets.
+  Selected context remains in the header, so duplicate names stay recognizable.
   Discovery, connection, history, and activity failures stay distinct. An old
   selection never silently redirects to another process after it disappears.
 - A new session with no conversation shows **No messages yet**. Pi may keep
@@ -128,6 +141,9 @@ RAI never starts/stops Pi. Ctrl-C or SIGTERM stops only RAI-owned work.
   safe cutoff replace it together; `message_end`, text matching and timers are
   not persistence evidence. Reading older content does not force-follow new
   output; **Go to latest** explicitly resynchronizes an over-one-page update gap.
+  Token-only updates preserve completed-history DOM nodes, focus and text
+  selection. Native summaries/load controls retain keyed focus on actual
+  redraws; deferred expansion hands focus forward only if its loader still owns it.
 - One ordinary textarea expands on focus; Send and Stop are the only composer
   actions. There is no Review message dialog, receipt archive, draft menu or
   reuse/unlock step. Unsent input stays with its conversation while this page
@@ -163,10 +179,14 @@ replay. A real Node-host tmux discovery omission was fixed and rechecked.
 History/projection, browser request security, input/dispatch state, DOM rendering and
 client interactions have synthetic tests and independent source reviews. The
 Go/TS fixture exercises the real service, literal HTTP controls, duplicate-ID
-rejection, restart and stale targets. **DOM geometry is synthetic: actual browser
-scrolling, a real tablet/software keyboard, and full live history reconciliation
-have not been accepted yet.** No real-browser automation tool was available.
-The operator explicitly deferred the broad second smoke phase to proceed with
+rejection, restart and stale targets. **Physical tablet/software-keyboard behavior and full live history
+reconciliation remain unaccepted.** A later bounded headless-Chrome check using
+synthetic content verified actual local font loading, text-selection/focus/scroll
+stability during streaming, deferred-load focus and basic layout at desktop,
+834×1194, 1024×420 and 512×384 CSS viewports. The latter two are shortened/zoom-
+equivalent layout proxies, not a real OS keyboard or native 200% browser zoom.
+Go tests separately cover actual embedded font routes/MIME/CSP. The visual fixture
+never accessed live Pi conversations or controls. The operator explicitly deferred the broad second smoke phase to proceed with
 history/UI implementation; untested cases are not silently called passed.
 
 Remaining limits:

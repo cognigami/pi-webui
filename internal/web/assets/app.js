@@ -23,6 +23,16 @@ export function safeText(value) {
     .replace(ANSI, "")
     .replace(CONTROLS, "");
 }
+function activityLabel(value) {
+  return (
+    {
+      idle: "Idle",
+      working: "Working",
+      waiting: "Waiting for input",
+      unknown: "Activity unknown",
+    }[value] ?? "Activity unknown"
+  );
+}
 function el(doc, tag, text, className) {
   const n = doc.createElement(tag);
   if (text !== undefined) n.textContent = safeText(text);
@@ -153,6 +163,8 @@ export function renderRecord(doc, view, entry, helpers) {
   const role = entry.role ?? raw?.message?.role;
   const primary = ["user", "assistant"].includes(role);
   article.dataset.record = entry.id;
+  article.dataset.focusKey = "entry:" + entry.id + ":record";
+  article.tabIndex = -1;
   article.dataset.role = role || entry.type;
   article.className = primary
     ? "chat-message"
@@ -199,7 +211,10 @@ export function renderRecord(doc, view, entry, helpers) {
             " bytes"
         : "Load full retained entry · " + entry.bytes + " bytes",
     );
-    button.disabled = !!loading?.controller;
+    // Keep the initiating keyboard control focusable while its guarded request
+    // is in flight; a native disabled button cannot retain browser focus.
+    button.setAttribute("aria-disabled", String(!!loading?.controller));
+    button.dataset.focusKey = "entry:" + entry.id + ":load";
     button.addEventListener("click", () => helpers.expand(entry));
     article.append(button);
     return article;
@@ -220,7 +235,9 @@ export function renderRecord(doc, view, entry, helpers) {
       if (details.open) view.recordOpen.add(entry.id);
       else view.recordOpen.delete(entry.id);
     });
-    details.append(el(doc, "summary", recordLabel(entry, raw)));
+    const summary = el(doc, "summary", recordLabel(entry, raw));
+    summary.dataset.focusKey = "entry:" + entry.id + ":summary";
+    details.append(summary);
     if (raw.type === "compaction" || raw.type === "branch_summary")
       renderText(doc, details, raw.summary);
     else details.append(el(doc, "pre", JSON.stringify(raw, null, 2)));
@@ -250,10 +267,6 @@ export function renderRecord(doc, view, entry, helpers) {
         ),
       );
     if (message.role === "toolResult") {
-      if (message.parentToolCallId)
-        article.append(
-          el(doc, "p", "Nested under " + message.parentToolCallId, "meta"),
-        );
       article.append(
         disclosure(
           doc,
@@ -263,7 +276,18 @@ export function renderRecord(doc, view, entry, helpers) {
           (message.isError ? "Error result" : "Tool result") +
             " · " +
             (message.toolName || "unknown"),
-          (body) => blocks(doc, body, message.content, view, entry.id, helpers),
+          (body) => {
+            if (message.parentToolCallId)
+              body.append(
+                el(
+                  doc,
+                  "p",
+                  "Nested under " + message.parentToolCallId,
+                  "meta",
+                ),
+              );
+            blocks(doc, body, message.content, view, entry.id, helpers);
+          },
           helpers.changed,
         ),
       );
@@ -288,7 +312,8 @@ export async function boot(doc = globalThis.document) {
     discoveryError = "",
     connection = "",
     lastAnnouncement = "",
-    lastSignature = "";
+    lastSignature = "",
+    lastHistorySignature = "";
   let polling = false,
     pollTimer,
     lastVerifiedAt = 0;
@@ -365,7 +390,8 @@ export async function boot(doc = globalThis.document) {
       const button = [...doc.querySelectorAll("[data-focus-key]")].find(
         (n) => n.dataset.focusKey === focus,
       );
-      button?.focus({ preventScroll: true });
+      if (button && button !== doc.activeElement)
+        button.focus({ preventScroll: true });
     }
   }
   async function request(path, options = {}) {
@@ -434,13 +460,7 @@ export async function boot(doc = globalThis.document) {
         button.setAttribute("aria-current", "true");
       const badge = el(doc, "span", "Connected", "session-status");
       badge.dataset.state = "connected";
-      const activity =
-        {
-          idle: "Idle",
-          working: "Working",
-          waiting: "Waiting for input",
-          unknown: "Activity unknown",
-        }[row.observation.snapshot.state.activity] ?? "Activity unknown";
+      const activity = activityLabel(row.observation.snapshot.state.activity);
       button.append(
         el(doc, "strong", row.label),
         badge,
@@ -485,6 +505,7 @@ export async function boot(doc = globalThis.document) {
     unavailable = !row.endpointId;
     notice = "";
     lastSignature = "";
+    lastHistorySignature = "";
     if (row.observation) {
       const snapshot = row.observation.snapshot,
         key = conversationKey(snapshot);
@@ -545,8 +566,13 @@ export async function boot(doc = globalThis.document) {
       : "Show session records";
   }
   function renderFrame(force = false, preserve = false) {
-    $("recipient").textContent =
-      active?.label ?? selected?.label ?? "Choose a session";
+    $("recipient").textContent = safeText(
+      active?.label ?? selected?.label ?? "Choose a session",
+    );
+    const context = safeText(selected?.context);
+    if ($("recipient-context").textContent !== context)
+      $("recipient-context").textContent = context;
+    $("recipient-context").hidden = !context;
     const s = active?.snapshot;
     $("activity").textContent = s
       ? (unavailable
@@ -554,12 +580,8 @@ export async function boot(doc = globalThis.document) {
           : !online || !active?.verified
             ? "Stale · "
             : "") +
-        (s.state.activity === "idle"
-          ? "Idle — not a task-completion verdict"
-          : s.state.activity) +
-        (s.state.pending ? " · queued input observed" : "") +
-        " · " +
-        new Date(s.observedAt).toLocaleTimeString()
+        activityLabel(s.state.activity) +
+        (s.state.pending ? " · input queued" : "")
       : "No connected session";
     const staleSource = active && !active.verified;
     $("connection").hidden = online && !unavailable && !staleSource;
@@ -579,6 +601,8 @@ export async function boot(doc = globalThis.document) {
       $("messages").replaceChildren();
       $("provisional").replaceChildren();
       $("older").hidden = true;
+      $("history-health").hidden = false;
+      lastHistorySignature = "";
       $("history-health").textContent = selected
         ? "Integration unavailable; no terminal fallback."
         : "Choose a running Pi session to catch up.";
@@ -601,16 +625,18 @@ export async function boot(doc = globalThis.document) {
             ? view.before
               ? "No conversation messages on this page. Load older messages or show session records in View."
               : "No messages yet. Write a message below."
-            : "Retained history · " +
-              (view.snapshot.turnOpen
-                ? "current turn is provisional"
-                : "completed boundary"));
+            : "");
+    $("history-health").hidden = !$("history-health").textContent;
     $("history-health").className = view.historyError ? "error" : "meta";
     $("older").hidden = !view.before || view.needsLatest;
     $("older").disabled = loadingOlder;
-    const signature = JSON.stringify([
+    const historySignature = JSON.stringify([
       view.key,
-      view.entries.map((e) => e.id),
+      entries.map((entry) => entry.id),
+      view.showRecords,
+    ]);
+    const signature = JSON.stringify([
+      historySignature,
       view.snapshot.provisional,
       view.snapshot.liveUnavailable,
       view.needsLatest,
@@ -625,9 +651,14 @@ export async function boot(doc = globalThis.document) {
       expand: (entry) => expandEntry(view, entry, true),
     };
     anchored(() => {
-      $("messages").replaceChildren(
-        ...entries.map((entry) => renderRecord(doc, view, entry, helpers)),
-      );
+      // Persisted entries are immutable. Token-only updates must not destroy
+      // their DOM nodes, keyboard focus or the reader's text selection.
+      if (force || historySignature !== lastHistorySignature) {
+        $("messages").replaceChildren(
+          ...entries.map((entry) => renderRecord(doc, view, entry, helpers)),
+        );
+        lastHistorySignature = historySignature;
+      }
       $("provisional").replaceChildren();
       if (view.snapshot.liveUnavailable)
         $("provisional").append(
@@ -663,10 +694,6 @@ export async function boot(doc = globalThis.document) {
                 tool.toolName,
             ),
           );
-          if (tool.parentToolCallId)
-            box.append(
-              el(doc, "p", "Parent: " + tool.parentToolCallId, "meta"),
-            );
           if (tool.isError) box.append(el(doc, "p", "Tool error", "error"));
           box.append(
             disclosure(
@@ -676,6 +703,10 @@ export async function boot(doc = globalThis.document) {
               "result:" + tool.toolCallId,
               tool.type === "tool_execution_end" ? "Result" : "In progress",
               (body) => {
+                if (tool.parentToolCallId)
+                  body.append(
+                    el(doc, "p", "Parent: " + tool.parentToolCallId, "meta"),
+                  );
                 const result = tool.result ?? tool.partialResult;
                 if (result && typeof result === "object" && "content" in result)
                   blocks(
@@ -770,7 +801,18 @@ export async function boot(doc = globalThis.document) {
           : error.message,
       });
     }
-    if (active === view) renderFrame(true, true);
+    if (active === view) {
+      const loaderOwnsFocus =
+        doc.activeElement?.dataset.focusKey === "entry:" + entry.id + ":load";
+      renderFrame(true, true);
+      if (loaderOwnsFocus && view.full.has(entry.id)) {
+        const record = [
+          ...$("messages").querySelectorAll("article[data-record]"),
+        ].find((node) => node.dataset.record === entry.id);
+        const target = record?.querySelector("[data-focus-key]") ?? record;
+        target?.focus({ preventScroll: true });
+      }
+    }
   }
   async function post(req) {
     try {

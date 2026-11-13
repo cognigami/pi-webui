@@ -20,7 +20,7 @@ import (
 	"rai/internal/history"
 )
 
-//go:embed assets/index.html assets/app.js assets/model.js assets/style.css
+//go:embed assets/index.html assets/app.js assets/model.js assets/style.css assets/fonts/*
 var assets embed.FS
 
 type sessions interface {
@@ -45,7 +45,7 @@ func App(server sessions, authority string, run catalog.Run) (http.Handler, erro
 	token := hex.EncodeToString(secret[:])
 	reader := history.NewReader()
 	mux := http.NewServeMux()
-	for route, name := range map[string]string{"/": "index.html", "/app.js": "app.js", "/model.js": "model.js", "/style.css": "style.css"} {
+	for route, name := range map[string]string{"/": "index.html", "/app.js": "app.js", "/model.js": "model.js", "/style.css": "style.css", "/fonts/GoogleSans-Variable.ttf": "fonts/GoogleSans-Variable.ttf", "/fonts/GoogleSans-Italic-Variable.ttf": "fonts/GoogleSans-Italic-Variable.ttf", "/fonts/GoogleSans-OFL.txt": "fonts/GoogleSans-OFL.txt"} {
 		mux.HandleFunc("GET "+route, func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != route {
 				http.NotFound(w, r)
@@ -62,6 +62,12 @@ func App(server sessions, authority string, run catalog.Run) (http.Handler, erro
 			}
 			if strings.HasSuffix(name, ".css") {
 				kind = "text/css; charset=utf-8"
+			}
+			if strings.HasSuffix(name, ".ttf") {
+				kind = "font/ttf"
+			}
+			if strings.HasSuffix(name, ".txt") {
+				kind = "text/plain; charset=utf-8"
 			}
 			w.Header().Set("Content-Type", kind)
 			w.Write(data)
@@ -212,7 +218,7 @@ func boundary(authority, csrf string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
 		if !hosts[r.Host] {
 			http.Error(w, "Host not permitted", 403)
 			return

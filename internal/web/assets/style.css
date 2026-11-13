@@ -1,14 +1,39 @@
+@font-face {
+  font-family: "Google Sans";
+  src: url("/fonts/GoogleSans-Variable.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Google Sans";
+  src: url("/fonts/GoogleSans-Italic-Variable.ttf") format("truetype");
+  font-style: italic;
+  font-weight: 400 700;
+  font-display: swap;
+}
 :root {
   color-scheme: light;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Google Sans", system-ui, sans-serif;
   font-size: 16px;
-  color: #1e293b;
-  background: #f5f7fa;
+  font-weight: 400;
+  --ground: #fcf7e4;
   --surface: #ffffff;
-  --muted: #526175;
-  --border: #ccd5e0;
-  --accent: #1d4f91;
-  --danger: #a1212b;
+  --sand: #fcf2d5;
+  --morning-glory: #f3e4d7;
+  --text: #362f4e;
+  --muted: #595959;
+  --border: rgba(54, 47, 78, 0.2);
+  --control-border: #715894;
+  --accent: #1967d2;
+  --danger: #973666;
+  --warning: #854d32;
+  --success: #39654f;
+  --yellow: #fbbc04;
+  --yellow-hover: #f9ab00;
+  --ink: #14152d;
+  color: var(--text);
+  background: var(--ground);
 }
 * {
   box-sizing: border-box;
@@ -18,8 +43,8 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #f5f7fa;
-  color: #1e293b;
+  background: var(--ground);
+  color: var(--text);
 }
 #app {
   height: var(--viewport-height, 100dvh);
@@ -40,7 +65,7 @@ header {
   flex: none;
   padding: 0.55rem 1rem;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--ground);
 }
 .heading {
   min-width: 0;
@@ -49,18 +74,23 @@ header {
 }
 h1 {
   font-size: 1.05rem;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.4;
   margin: 0;
   overflow-wrap: anywhere;
 }
 h2 {
   font-size: 1.25rem;
+  font-weight: 600;
   line-height: 1.4;
 }
 p {
   line-height: 1.5;
 }
+a {
+  color: var(--accent);
+}
+#recipient-context,
 #activity {
   margin: 0.2rem 0 0;
   color: var(--muted);
@@ -68,36 +98,40 @@ p {
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+#recipient-context:empty {
+  display: none;
+}
 button {
   min-height: 44px;
   min-width: 44px;
   padding: 0.45rem 0.7rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 0.55rem;
   background: var(--surface);
-  color: #263750;
+  color: var(--text);
   font: inherit;
-  font-weight: 550;
+  font-weight: 600;
   line-height: 1.4;
   cursor: pointer;
   overflow-wrap: anywhere;
 }
-button:hover:not(:disabled) {
-  border-color: #7b92ad;
-  background: #f0f5fb;
+button:hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--control-border);
+  background: var(--ground);
 }
-button:active:not(:disabled) {
-  background: #e4edf8;
+button:active:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--sand);
 }
-button:disabled {
+button:disabled,
+button[aria-disabled="true"] {
   cursor: default;
-  background: #f0f2f5;
-  border-color: #d6dde6;
-  color: #647184;
+  background: var(--morning-glory);
+  border-color: var(--border);
+  color: var(--muted);
   opacity: 1;
 }
 :focus-visible {
-  outline: 3px solid #2468bf;
+  outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
 #history {
@@ -123,29 +157,21 @@ button:disabled {
 article {
   margin: 0 0 0.65rem;
   padding: 0.7rem 0.95rem;
-  border: 1px solid #dbe2eb;
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
   background: var(--surface);
   overflow-wrap: anywhere;
 }
 article h2 {
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.045em;
-  text-transform: uppercase;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: none;
   line-height: 1.5;
   margin: 0 0 0.45rem;
-  color: #405775;
+  color: var(--text);
 }
 article[data-role="user"] {
-  background: #edf4fc;
-  border-color: #c8d9ed;
-}
-article[data-role="user"] h2 {
-  color: #1d4f91;
-}
-article[data-role="assistant"] h2 {
-  color: #285b4c;
+  background: var(--sand);
 }
 article p {
   margin: 0.4rem 0;
@@ -159,9 +185,9 @@ pre {
   overflow: auto;
   max-width: 100%;
   padding: 0.7rem;
-  border: 1px solid #dce3ec;
-  background: #f3f6fa;
-  color: #263750;
+  border: 1px solid var(--border);
+  background: var(--ground);
+  color: var(--text);
   border-radius: 0.5rem;
   font-size: 0.85rem;
   line-height: 1.65;
@@ -177,15 +203,16 @@ pre {
 .disclosure > button {
   text-align: left;
   width: 100%;
-  background: #f5f7fa;
-  font-size: 0.9rem;
+  background: var(--ground);
+  font-size: 0.875rem;
+  font-weight: 400;
 }
 .disclosure > button::before {
   content: "+";
   display: inline-block;
   width: 1.25rem;
   color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
 }
 .disclosure > button[aria-expanded="true"]::before {
   content: "−";
@@ -193,7 +220,7 @@ pre {
 .disclosure-body {
   margin: 0.5rem 0 0 0.5rem;
   padding: 0.25rem 0 0.25rem 0.85rem;
-  border-left: 2px solid #b8c9dd;
+  border-left: 2px solid var(--border);
 }
 summary {
   min-height: 44px;
@@ -224,7 +251,7 @@ article.tool-record {
   margin: 0;
 }
 #records-button[aria-pressed="true"] {
-  background: #edf4fc;
+  background: var(--sand);
   border-color: var(--accent);
 }
 .error {
@@ -233,7 +260,7 @@ article.tool-record {
   overflow-wrap: anywhere;
 }
 #provisional {
-  border-left: 3px solid #6996c9;
+  border-left: 3px solid var(--control-border);
   padding-left: 0.75rem;
 }
 #provisional:empty {
@@ -244,9 +271,9 @@ article.tool-record {
 #conversation-notice {
   flex: none;
   padding: 0.7rem 1.25rem;
-  border-bottom: 1px solid #e9d5a5;
-  background: #fff6e5;
-  color: #70460b;
+  border-bottom: 1px solid var(--warning);
+  background: var(--sand);
+  color: var(--warning);
   font-size: 0.9rem;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -254,7 +281,7 @@ article.tool-record {
 #view-menu {
   flex: none;
   padding: 0.85rem 1.25rem;
-  background: var(--surface);
+  background: var(--ground);
   border-bottom: 1px solid var(--border);
   max-height: 25vh;
   overflow: auto;
@@ -268,15 +295,21 @@ article.tool-record {
   display: none !important;
 }
 footer {
-  flex: none;
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   border-top: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--ground);
   padding: 0.5rem max(1rem, calc((100% - 54rem) / 2));
   max-height: 55%;
   overflow: auto;
 }
 #feedback {
-  color: #40516a;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  color: var(--muted);
   font-size: 0.9rem;
   line-height: 1.5;
   padding-bottom: 0.35rem;
@@ -289,29 +322,45 @@ footer {
 .footer-actions {
   flex-wrap: wrap;
 }
+#composer {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 44px;
+}
 footer > .footer-actions {
+  flex: none;
   position: sticky;
   bottom: 0;
   padding-top: 0.35rem;
-  background: var(--surface);
+  background: var(--ground);
 }
 #stop-button:not(:disabled) {
-  border-color: #c9777d;
+  border-color: var(--danger);
   color: var(--danger);
-  background: #fff7f7;
+  background: var(--surface);
+}
+#stop-button:hover:not(:disabled) {
+  background: var(--ground);
+}
+#stop-button:active:not(:disabled) {
+  background: var(--sand);
 }
 #send-button {
   margin-left: auto;
+  border-radius: 999px;
 }
 #send-button:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #ffffff;
+  border-color: var(--control-border);
+  background: var(--yellow);
+  color: var(--ink);
 }
-#send-button:hover:not(:disabled) {
-  background: #163e74;
+#send-button:hover:not(:disabled),
+#send-button:active:not(:disabled) {
+  background: var(--yellow-hover);
 }
 textarea {
+  flex: 1 1 auto;
   width: 100%;
   min-height: 44px;
   max-height: 24vh;
@@ -319,13 +368,14 @@ textarea {
   font: inherit;
   line-height: 1.5;
   padding: 0.5rem 0.65rem;
-  border: 1px solid #95a8bf;
+  border: 1px solid var(--control-border);
   border-radius: 0.55rem;
   background: var(--surface);
-  color: #1e293b;
+  color: var(--text);
 }
 textarea::placeholder {
-  color: #637186;
+  color: var(--muted);
+  opacity: 1;
 }
 #draft-error:empty {
   display: none;
@@ -335,8 +385,7 @@ textarea::placeholder {
   align-self: center;
   margin: 0.45rem;
   color: var(--accent);
-  border-color: #97b5d9;
-  box-shadow: 0 2px 6px #20395b12;
+  border-color: var(--accent);
 }
 dialog {
   border: 1px solid var(--border);
@@ -345,18 +394,17 @@ dialog {
   width: min(42rem, calc(100vw - 2rem));
   max-height: calc(100% - 2rem);
   background: var(--surface);
-  color: #1e293b;
+  color: var(--text);
   overflow: auto;
   overscroll-behavior: contain;
-  box-shadow: 0 12px 44px #20395b24;
 }
 dialog::backdrop {
-  background: #26375018;
+  background: transparent;
 }
 .dialog-heading {
   justify-content: space-between;
   padding-bottom: 0.9rem;
-  border-bottom: 1px solid #e1e7ef;
+  border-bottom: 1px solid var(--border);
 }
 .dialog-heading h2 {
   flex: 1;
@@ -372,12 +420,11 @@ dialog::backdrop {
   height: var(--viewport-height, 100dvh);
   max-height: 100%;
   border: 0;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--control-border);
   border-radius: 0;
   padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem
     max(1.25rem, env(safe-area-inset-bottom))
     max(1.25rem, env(safe-area-inset-left));
-  box-shadow: 8px 0 32px #20395b1a;
 }
 #sessions::backdrop {
   background: transparent;
@@ -388,7 +435,7 @@ dialog::backdrop {
   overflow-wrap: anywhere;
 }
 #session-summary {
-  color: #263750;
+  color: var(--text);
   font-weight: 600;
   margin: 1rem 0;
 }
@@ -408,39 +455,39 @@ dialog::backdrop {
   display: inline;
   font-size: 0.95rem;
   line-height: 1.5;
-  color: #23364e;
+  color: var(--text);
 }
 .session small {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 400;
   line-height: 1.6;
   margin-top: 0.35rem;
 }
 .session-connected {
-  border-color: #b5cdbf;
+  border-color: var(--control-border);
 }
-.session[aria-current="true"],
-.session[aria-pressed="true"] {
-  background: #edf4fc;
+button.session[aria-current="true"],
+button.session[aria-pressed="true"] {
+  background: var(--sand);
   border-color: var(--accent);
 }
 .session-status {
   display: inline-block;
   margin: 0 0 0 0.45rem;
   padding: 0.1rem 0.45rem;
-  border: 1px solid #c7d1df;
+  border: 1px solid var(--border);
   border-radius: 1rem;
-  background: #f0f3f7;
-  color: #45546a;
-  font-size: 0.75rem;
+  background: var(--ground);
+  color: var(--muted);
+  font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.5;
 }
 .session-status[data-state="connected"] {
-  background: #eaf5ee;
-  border-color: #b5d7c0;
-  color: #265c3b;
+  background: var(--ground);
+  border-color: var(--success);
+  color: var(--success);
 }
 .sr-only {
   position: absolute;
