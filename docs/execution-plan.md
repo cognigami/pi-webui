@@ -249,6 +249,16 @@ Recommended next implementation, pending operator direction:
 
 The repeated Connected badge is optional polish only; do not shrink name/context text further to compensate. No UI code/runtime changes were made for this review; only this durable review note was recorded.
 
+### Dreamcoat reassessment — proposed visual treatment
+
+The operator asked why not use Dreamcoat. The UI designer and coordinator read the local specification at `/Users/ricardo/Documents/mau/dreamcoat/SKILL.md`, its font README, and `/Users/ricardo/Documents/mau/ui-design/README.md`. The private-tool companion is the applicable adaptation, not literal presentation-scale/Quantum Lab styling or official Google branding. The earlier recommendation to preserve the generic blue-grey palette was over-conservative and is superseded by this direction; functional/density constraints remain.
+
+Proposed treatment: Cream ground/chrome, white assistant/reading/input surfaces, Sand user messages, Thistle/plum text, locally bundled Google Sans (regular/italic variable fonts with OFL), one yellow Send action with dark text, restrained outlined Stop/error, blue focus/selection, and secondary flat tool/disclosure rows. Keep current moderate spacing, 16px body and 44px targets. No artwork, textures, hero/display headlines, animations, framework, CDN or new dependency. This is a Dreamcoat-derived private working instrument, not a claim of official brand fidelity.
+
+Actual font use requires bundling/serving the local licensed font files as font/ttf, @font-face 400–700, and CSP font-src self; naming an absent font is not implementation. Contrast and actual font loading/keyboard geometry require the small synthetic rendered check already proposed. The three usability fixes above remain necessary and should accompany rather than be replaced by visual styling. Source confidentiality/artwork restrictions remain intact; no external guide fetch/upload or neighboring-project mutations.
+
+This is a design recommendation only, pending operator implementation direction. No UI/runtime changes were made during the reassessment.
+
 ### Deferred follow-up: SSH tunnel access
 
 The operator reports **Host not permitted** when accessing RAI through an SSH tunnel; currently they must remote-view the host machine to use the page. Record this as an unresolved access defect, not a requirement to use remote desktop. No tunnel/configuration/security changes were requested for this turn.
