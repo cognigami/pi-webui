@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.user.pi-webui</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/local/bin/rai</string>
+    <string>serve</string>
+    <string>-config</string>
+    <string>/Users/you/.config/pi-webui/config.json</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/you</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/you</string>
+    <key>PATH</key>
+    <string>/Users/you/.local/bin:/opt/local/bin:/opt/local/sbin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>KeepAlive</key>
+  <true/>
+  <key>Umask</key>
+  <string>077</string>
+  <key>StandardOutPath</key>
+  <string>/Users/you/Library/Logs/pi-webui/pi-webui.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/you/Library/Logs/pi-webui/pi-webui.log</string>
+</dict>
+</plist>

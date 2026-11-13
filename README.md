@@ -61,9 +61,47 @@ new embedded assets. Pi can stay running; the extension reconnects automatically
 
 The default bridge socket is `~/.local/state/rai/bridge.sock`. Its directory must
 be user-owned mode 0700 without symlink components; the socket is mode 0600.
-Startup refuses any existing socket path. After a crash, confirm its service is
-stopped before removing that exact abandoned socket. Graceful shutdown removes
-the service-owned socket.
+Startup holds a private `bridge.sock.lock` until the listener closes. It refuses
+live sockets, symlinks and non-socket paths, but recovers an owned abandoned socket
+when a connection is refused. Graceful shutdown removes the socket and releases
+the lock. The empty lock file stays in place; do not delete it while RAI runs.
+
+### macOS LaunchAgent
+
+[configs/launchd.example.plist](configs/launchd.example.plist) is the per-user job
+`com.user.pi-webui`. Replace `/Users/you` with your home directory before copying
+it to `~/Library/LaunchAgents/com.user.pi-webui.plist`. It runs `/opt/local/bin/rai`
+with `~/.config/pi-webui/config.json`, writes to
+`~/Library/Logs/pi-webui/pi-webui.log`, and supplies PATH for Herdr/tmux discovery.
+Create those configuration/log directories first (mode 0700) and copy your chosen
+LAN config to the installed config path (mode 0600). Keep the checkout's original
+config unchanged; the installed copy is the LaunchAgent's active configuration.
+
+After a successful build, install the binary and load the prepared plist:
+
+```sh
+sudo install -m 755 bin/rai /opt/local/bin/rai
+launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.user.pi-webui.plist"
+```
+
+`KeepAlive` starts it on load and at login, and restarts it if it exits. No
+separate kickstart or shell wrapper is needed. This is a user-login service, not a
+root daemon, and it does not prevent machine sleep or start/manage Pi sessions.
+The bridge address stays `~/.local/state/rai/bridge.sock` for compatibility with
+already-loaded extensions; new install/config/log names use **pi-webui**.
+
+After later builds, repeat the binary installation, then restart only this job:
+
+```sh
+launchctl kickstart -k "gui/$(id -u)/com.user.pi-webui"
+```
+
+Refresh the browser after updating. To stop the service (without KeepAlive
+restarting it), use `launchctl bootout "gui/$(id -u)/com.user.pi-webui"`. Remove
+only its plist if you also want to disable loading at future logins. Avoid running
+a second manual RAI instance beside the job. Rebuilds do not automatically update
+the installed binary. The active LAN address must still belong to this machine;
+startup failures are recorded in the job's log and launchd retries are throttled.
 
 ### Configuration and tablet access
 

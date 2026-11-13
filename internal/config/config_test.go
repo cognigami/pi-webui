@@ -45,6 +45,103 @@ func TestPrivateSocketAndRefusalToReplace(t *testing.T) {
 	}
 	conn.Close()
 }
+func TestAbandonedSocketIsRecoveredAndLockReleased(t *testing.T) {
+	path := filepath.Join(directory(t), "bridge.sock")
+	old, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	old.SetUnlinkOnClose(false)
+	if err := old.Close(); err != nil {
+		t.Fatal(err)
+	}
+	listener, err := ListenPrivate(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := listener.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		t.Fatal("closed socket remains", err)
+	}
+	next, err := ListenPrivate(path)
+	if err != nil {
+		t.Fatal("lock was not released", err)
+	}
+	next.Close()
+}
+func TestLiveLegacySocketWithoutLockIsNotReplaced(t *testing.T) {
+	path := filepath.Join(directory(t), "bridge.sock")
+	old, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer old.Close()
+	if replacement, err := ListenPrivate(path); err == nil {
+		replacement.Close()
+		t.Fatal("replaced live socket without a lock")
+	}
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		t.Fatal("existing listener was damaged", err)
+	}
+	conn.Close()
+}
+func TestSocketLockProtectsEvenAnUnlinkedListener(t *testing.T) {
+	path := filepath.Join(directory(t), "bridge.sock")
+	first, err := ListenPrivate(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if next, err := ListenPrivate(path); err == nil {
+		next.Close()
+		t.Fatal("ignored the running owner's lock")
+	}
+}
+func TestExistingFilesAndSymlinksAreNotRemoved(t *testing.T) {
+	for _, kind := range []string{"file", "socket-symlink", "lock-symlink"} {
+		t.Run(kind, func(t *testing.T) {
+			dir := directory(t)
+			path := filepath.Join(dir, "bridge.sock")
+			target := filepath.Join(dir, "keep")
+			if err := os.WriteFile(target, []byte("keep"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			switch kind {
+			case "file":
+				if err := os.WriteFile(path, []byte("keep"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "socket-symlink":
+				if err := os.Symlink(target, path); err != nil {
+					t.Fatal(err)
+				}
+			case "lock-symlink":
+				if err := os.Symlink(target, path+".lock"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if l, err := ListenPrivate(path); err == nil {
+				l.Close()
+				t.Fatal("replaced", kind)
+			}
+			data, err := os.ReadFile(target)
+			if err != nil || string(data) != "keep" {
+				t.Fatal("modified target", err)
+			}
+			if kind == "file" {
+				if data, err := os.ReadFile(path); err != nil || string(data) != "keep" {
+					t.Fatal("modified existing file", err)
+				}
+			}
+		})
+	}
+}
 func TestUnsafeDirectoryIsNotRepaired(t *testing.T) {
 	dir := directory(t)
 	if err := os.Chmod(dir, 0755); err != nil {
