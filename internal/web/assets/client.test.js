@@ -26,12 +26,17 @@ function fixtureDOM() {
   window.HTMLElement.prototype.focus = function () {
     if (this.disabled) return;
     if (focused !== this) {
+      const previous = focused;
       focused = this;
+      previous?.dispatchEvent(new window.Event("blur"));
       this.dispatchEvent(new window.Event("focus"));
     }
   };
   window.HTMLElement.prototype.blur = function () {
-    if (focused === this) focused = null;
+    if (focused === this) {
+      focused = null;
+      this.dispatchEvent(new window.Event("blur"));
+    }
   };
   for (const id of ["sessions"]) {
     const d = document.getElementById(id);
@@ -232,6 +237,12 @@ test("untouched conversation has one ordinary editor and no draft-management UI"
   $("draft").value = "unsent draft";
   $("draft").dispatchEvent(new window.Event("input"));
   assert.equal($("send-button").disabled, false);
+  assert.equal($("draft").rows, 3);
+  $("view-button").focus();
+  assert.equal($("draft").rows, 1);
+  assert.equal($("draft").value, "unsent draft");
+  $("draft").focus();
+  assert.equal($("draft").rows, 3);
   const escapeKey = new window.Event("keydown");
   escapeKey.key = "Escape";
   $("draft").dispatchEvent(escapeKey);
@@ -258,6 +269,8 @@ test("selected identity stays recognizable and retained history survives streami
   rows[0].label = rows[1].label = "Coordinator";
   rows[0].context = "w1 · p1 · /project-alpha";
   rows[1].context = "w2 · p2 · /project-beta";
+  rows[0].observation.snapshot.host.cwd = "/projects/project-alpha";
+  rows[1].observation.snapshot.host.cwd = "/projects/project-beta";
   let seq = 1,
     token = "first",
     app;
@@ -320,7 +333,8 @@ test("selected identity stays recognizable and retained history survives streami
   const view = app.views.get(conversationKey(rows[1].observation.snapshot));
   await until(() => view.verified);
   assert.equal($("recipient").textContent, "Coordinator");
-  assert.equal($("recipient-context").textContent, rows[1].context);
+  assert.equal($("recipient-context").textContent, "projects/project-beta");
+  assert.equal($("recipient-context").textContent.includes("w2"), false);
   assert.equal($("recipient-context").hidden, false);
   assert.equal($("activity").textContent, "Working");
   assert.equal($("history-health").hidden, true);
@@ -371,6 +385,7 @@ test("selected identity stays recognizable and retained history survives streami
   seq++;
   rows[1].label = "Renamed coordinator";
   rows[1].context = "w2 · p2 · /project-beta-renamed";
+  rows[1].observation.snapshot.host.cwd = "/projects/project-beta-renamed";
   doc.dispatchEvent(new window.Event("visibilitychange"));
   await until(() =>
     $("messages").textContent.includes("another retained message"),
@@ -378,7 +393,10 @@ test("selected identity stays recognizable and retained history survives streami
   assert.equal(doc.activeElement.dataset.focusKey, "entry:deferred:load");
   assert.notEqual(doc.activeElement, load);
   assert.equal($("recipient").textContent, "Renamed coordinator");
-  assert.equal($("recipient-context").textContent, rows[1].context);
+  assert.equal(
+    $("recipient-context").textContent,
+    "projects/project-beta-renamed",
+  );
 });
 test("deferred expansion keeps its loader focusable then hands off focus without stealing it", {
   timeout: 10000,
@@ -716,7 +734,8 @@ test("Send/Stop outcomes stay on original conversation without review UI; editab
   assert.equal(doc.activeElement, null);
   assert.equal($("stop-button").disabled, false);
   $("stop-button").click();
-  await until(() => $("feedback").textContent.includes("Stop requested"));
+  await until(() => calls.length === 2 && !a.stopPending);
+  assert.equal($("feedback").textContent, "");
   assert.equal(calls.length, 2);
   assert.equal(calls[1].operation, "stop");
   app.select(rows[1]);
@@ -735,7 +754,7 @@ test("Send/Stop outcomes stay on original conversation without review UI; editab
   );
   app.select(rows[0]);
   assert.match($("feedback").textContent, /Delivery unconfirmed/);
-  assert.match($("feedback").textContent, /Stop requested/);
+  assert.equal($("feedback").textContent.includes("Stop requested"), false);
   assert.equal($("review-button"), null);
   assert.equal($("draft").readOnly, false);
   assert.equal($("draft").value, literal);

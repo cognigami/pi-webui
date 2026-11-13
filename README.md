@@ -122,8 +122,9 @@ live Pi conversation.
 
 ## Browser behavior
 
-- Select by existing labels plus context; labels never become control targets.
-  Selected context remains in the header, so duplicate names stay recognizable.
+- Select by existing labels plus brief project/folder context; labels and folders
+  never become control targets. Folder context remains in the header; opaque
+  workspace/pane IDs are not useful navigation labels and are not displayed.
   Discovery, connection, history, and activity failures stay distinct. An old
   selection never silently redirects to another process after it disappears.
 - A new session with no conversation shows **No messages yet**. Pi may keep
@@ -145,7 +146,8 @@ live Pi conversation.
   Token-only updates preserve completed-history DOM nodes, focus and text
   selection. Native summaries/load controls retain keyed focus on actual
   redraws; deferred expansion hands focus forward only if its loader still owns it.
-- One ordinary textarea expands on focus; Send and Stop are the only composer
+- One ordinary textarea expands on focus and collapses on blur without clearing
+  its text. A clean inset focus edge stays inside the field. Send and Stop are the only composer
   actions. There is no Review message dialog, receipt archive, draft menu or
   reuse/unlock step. Unsent input stays with its conversation while this page
   remains open; reload loses it. Navigation never copies text into a new target.
@@ -159,10 +161,12 @@ live Pi conversation.
 - Lost/failed Send leaves the text directly editable with an inline warning;
   another Send is an ordinary deliberate action, not a recovery workflow.
   There is no automatic control retry or replay. Send uncertainty
-  and Stop feedback can coexist; Stop does not wait for Send's result.
+  and Stop failures can coexist; Stop does not wait for Send's result. Ordinary
+  Send/Stop dispatch stays quiet; the footer is for actionable failure/uncertainty.
 - Stop uses `ctx.abort(); ctx.ui.setEditorText("")`. It may discard desktop text
-  restored from queued input. A remote draft is untouched. **Stop requested**
-  is dispatch evidence, not a guarantee that all work/independent workers ended.
+  restored from queued input. A remote draft is untouched. The protocol's
+  `stop_requested` result is dispatch evidence, not a guarantee that all work/
+  independent workers ended; it is not a visible success notice.
 - Idle is not a task-completion or safe-shutdown verdict.
 
 All content is rendered through inert DOM text/code, without active HTML,

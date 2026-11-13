@@ -66,7 +66,7 @@ Code alone uses system monospace.
 +----------------------------------------------------------------+
 ```
 
-Use this structure on tablet and desktop, widening the conversation rather than adding a separate activity panel. The conversation gets the remaining height. Operator feedback replaced the duplicate compact Message-like button plus expanded panel with one real textarea: one row at rest, three on focus. Send and Stop are the only composer actions. The operator removed the Review/draft-management workflow entirely; there is no receipt archive, reuse/dismiss gate or Clear/Close options menu. Escape preserves text and returns to one row; Send also collapses and blurs. Keep readable 16px body text/44px targets, but modest card padding/gaps rather than oversized panels. Tool/thinking disclosures remain within the conversation.
+Use this structure on tablet and desktop, widening the conversation rather than adding a separate activity panel. The conversation gets the remaining height. Operator feedback replaced the duplicate compact Message-like button plus expanded panel with one real textarea: one row at rest, three on focus, collapsing on blur without clearing text. Keep the focus edge inside the field, not a clipped extra outer ring. Send and Stop are the only composer actions. The operator removed the Review/draft-management workflow entirely; there is no receipt archive, reuse/dismiss gate or Clear/Close options menu. Escape preserves text and returns to one row; Send also collapses and blurs. Keep readable 16px body text/44px targets, but modest card padding/gaps rather than oversized panels. Tool/thinking disclosures remain within the conversation.
 
 ### 3.2 Session list and tablet keyboard
 
@@ -85,7 +85,7 @@ Each row shows:
 
 **Naming responsibility:** Existing herdr window names already help the user recognize the intended agent. Use those names, and the equivalent existing labels in tmux. Do not require agents to name Pi conversations too. If naming ever needs improvement, that belongs in agent instructions rather than a new RAI naming system; no instruction change is a prerequisite here.
 
-RAI displays those labels consistently in the session list and conversation header. It does not infer assignments, generate names, parse roles from naming conventions, or maintain a second alias/renaming system. Unnamed or duplicate labels get available project/pane context and remain selectable; the naming convention is not an admission requirement. If names are technically retrievable but still hard to recognize, improve the agent instructions rather than add naming machinery to RAI.
+RAI displays those labels consistently in the session list and conversation header. It does not infer assignments, generate names, parse roles from naming conventions, or maintain a second alias/renaming system. Unnamed or duplicate labels get available project/folder context and remain selectable; do not surface opaque workspace/pane IDs as navigation labels; the naming convention is not an admission requirement. If names are technically retrievable but still hard to recognize, improve the agent instructions rather than add naming machinery to RAI.
 
 Use a stable ordering by display label and keep it steady across activity updates. No special coordinator selection step, unread badges, or message counters. If a label changes, update the displayed name without changing the selected target or moving a draft to another session.
 
@@ -153,7 +153,7 @@ Use Pi state consistently for sessions under either multiplexer. Useful herdr-sp
 
 ### 5.1 Interaction
 
-- One compact labeled textarea expands on focus; Send and Stop are the only composer actions. No Review message dialog, receipt archive, draft options menu or reuse/unlock workflow. Enter inserts a newline; there is no keyboard-only requirement to send.
+- One compact labeled textarea expands on focus and collapses on blur while preserving its value; Send and Stop are the only composer actions. No Review message dialog, receipt archive, draft options menu or reuse/unlock workflow. Enter inserts a newline; there is no keyboard-only requirement to send.
 - The recipient is the selected conversation, named in the always-visible conversation header with enough context to distinguish identical labels. Do not duplicate it beside the composer or introduce a separate recipient selector.
 - Edit/delete text normally in the textarea. Escape compacts it without deleting the text. Selecting/revisiting a conversation restores its page-local input in that single compact editor.
 - Disable Send for empty/whitespace-only content, an unavailable or unverified target, a disconnected client, or an outstanding submission from this composer.

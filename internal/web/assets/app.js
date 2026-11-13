@@ -33,6 +33,13 @@ function activityLabel(value) {
     }[value] ?? "Activity unknown"
   );
 }
+function projectContext(row) {
+  const cwd = safeText(
+    row?.observation?.snapshot.host.cwd || row?.panes?.[0]?.cwd,
+  );
+  const parts = cwd.replace(/\\/g, "/").split("/").filter(Boolean);
+  return parts.slice(-2).join("/") || cwd;
+}
 function el(doc, tag, text, className) {
   const n = doc.createElement(tag);
   if (text !== undefined) n.textContent = safeText(text);
@@ -464,7 +471,7 @@ export async function boot(doc = globalThis.document) {
       button.append(
         el(doc, "strong", row.label),
         badge,
-        el(doc, "small", row.context),
+        el(doc, "small", projectContext(row)),
         el(
           doc,
           "small",
@@ -536,6 +543,7 @@ export async function boot(doc = globalThis.document) {
     $("send-button").disabled = !maySend(active, online && !!csrf, verified());
     $("send-button").textContent = active?.pending ? "Sending…" : "Send";
     $("stop-button").disabled = !mayStop(active, online && !!csrf, verified());
+    $("stop-button").textContent = active?.stopPending ? "Stopping…" : "Stop";
     $("draft-error").textContent =
       active?.draft && !active.pending ? messageError(active.draft) : "";
     const state = active?.snapshot.state;
@@ -569,7 +577,7 @@ export async function boot(doc = globalThis.document) {
     $("recipient").textContent = safeText(
       active?.label ?? selected?.label ?? "Choose a session",
     );
-    const context = safeText(selected?.context);
+    const context = projectContext(selected);
     if ($("recipient-context").textContent !== context)
       $("recipient-context").textContent = context;
     $("recipient-context").hidden = !context;
@@ -853,7 +861,7 @@ export async function boot(doc = globalThis.document) {
     const view = active;
     if (!mayStop(view, online && !!csrf, verified())) return;
     view.stopPending = true;
-    view.stopReceipt = { detail: "Requesting stop…" };
+    view.stopReceipt = null;
     renderFooter();
     const result = await post({
       type: "control",
@@ -864,15 +872,18 @@ export async function boot(doc = globalThis.document) {
       associationId: view.snapshot.associationId,
     });
     view.stopPending = false;
-    view.stopReceipt = {
-      detail:
-        result.status === "stop_requested"
-          ? "Stop requested"
-          : result.status === "rejected"
-            ? "Stop not requested: " + result.detail
-            : "Stop outcome unknown",
-    };
-    announce(view.label + ": " + view.stopReceipt.detail);
+    view.stopReceipt =
+      result.status === "stop_requested"
+        ? null
+        : {
+            detail:
+              result.status === "rejected"
+                ? "Stop not requested: " + result.detail
+                : "Stop outcome unknown",
+          };
+    announce(
+      view.label + ": " + (view.stopReceipt?.detail || "Stop requested"),
+    );
     if (active === view) renderFooter();
   }
   async function poll() {
@@ -1000,6 +1011,12 @@ export async function boot(doc = globalThis.document) {
   $("draft").addEventListener("focus", () => {
     if (active) {
       active.open = true;
+      renderFooter();
+    }
+  });
+  $("draft").addEventListener("blur", () => {
+    if (active) {
+      active.open = false;
       renderFooter();
     }
   });
