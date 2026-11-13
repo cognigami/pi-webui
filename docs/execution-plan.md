@@ -276,6 +276,14 @@ The designer independently inspected rendered captures and coordinator JS/server
 
 After seeing the running style, the operator explicitly requested Sand rather than white for the background, agreed to modest Send corners, and asked to see Cream cards. The current preview sets the ground to canonical Sand (#FCF2D5), both message-card roles to Cream (#FCF7E4), and Send inherits the ordinary0.55rem control radius. White input/control surfaces, type, spacing,44px targets and behavior are unchanged. Updated representative screenshots use the same synthetic Chrome conversation; desktop/tablet checks and ordinary build/lint/test pass. The combination remains for operator visual judgment, not a new design-system requirement. Existing configs/lan.json was user work and was not changed or included in this UI commit.
 
+### Neutral reference preview — awaiting visual choice
+
+The operator found the warm treatment too intense at full-screen scale and supplied `../../engine1/docs/engines/report-reference-v1.html` as the new reference. The coordinator and UI designer read that actual file without modifying engine1 or contacting its agents. Cream really is lighter than Sand; the concern is broad chroma and repeated emphasis, not cache or incorrect RGB.
+
+A palette-only synthetic comparison is recorded at [desktop](images/rai-neutral-preview-desktop.png) and [tablet-sized](images/rai-neutral-preview-tablet.png): report-derived light-gray ground (#F1F4F8), white cards/chrome, dark text (#172335), secondary slate (#58667B), quiet rules (#DCE3ED), stronger achromatic control edges, navy Send and neutral ordinary controls. Existing font, dimensions, structure and behavior are unchanged. This is a preview, not a new production theme/configuration. No application source or running Pi/RAI configuration was changed; the owned temporary preview server/tab was closed.
+
+The designer independently read both captures and judged this visibly calmer, with no concrete new blocker. Scale remains a separate question: repeated full-width rounded message panels may still feel heavy/form-like. If that remains the operator's reaction, compare flatter conversation grouping next, rather than another palette or smaller text/touch targets. Do not implement that speculative variant before this preview is judged. Synthetic Chrome interaction/layout checks passed for the preview; this is not physical-device or final aesthetic acceptance.
+
 ### Deferred follow-up: SSH tunnel access
 
 The operator reports **Host not permitted** when accessing RAI through an SSH tunnel; currently they must remote-view the host machine to use the page. Record this as an unresolved access defect, not a requirement to use remote desktop. No tunnel/configuration/security changes were requested for this turn.
