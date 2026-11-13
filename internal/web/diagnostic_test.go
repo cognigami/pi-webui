@@ -12,7 +12,7 @@ import (
 )
 
 func TestDiagnosticSecurityAndNoHTTPControls(t *testing.T) {
-	handler := Diagnostic(bridge.New(), "127.0.0.1:8484", func(context.Context, string, ...string) ([]byte, error) {
+	handler := Diagnostic(bridge.New(), func(context.Context, string, ...string) ([]byte, error) {
 		return nil, errors.New("fixture unavailable")
 	})
 	for _, tc := range []struct {
@@ -21,7 +21,9 @@ func TestDiagnosticSecurityAndNoHTTPControls(t *testing.T) {
 	}{
 		{"GET", "/health", "127.0.0.1:8484", "", 200},
 		{"GET", "/sessions", "127.0.0.1:8484", "http://127.0.0.1:8484", 200},
-		{"GET", "/health", "attacker.example", "", 403},
+		{"GET", "/health", "machine.local:8000", "", 200},
+		{"GET", "/sessions", "machine.local:8000", "http://machine.local:8000", 200},
+		{"GET", "/health", "machine.local:8000", "http://other.local:8000", 403},
 		{"GET", "/health", "127.0.0.1:8484", "https://attacker.example", 403},
 		{"POST", "/sessions", "127.0.0.1:8484", "", 405},
 		{"POST", "/send", "127.0.0.1:8484", "", 404},

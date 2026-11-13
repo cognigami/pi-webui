@@ -9,7 +9,7 @@ import (
 )
 
 // Diagnostic retains the small read-only boundary for transport fixtures.
-func Diagnostic(server *bridge.Server, authority string, run catalog.Run) http.Handler {
+func Diagnostic(server *bridge.Server, run catalog.Run) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		reply(w, map[string]string{"status": "bridge diagnostic"})
@@ -26,5 +26,5 @@ func Diagnostic(server *bridge.Server, authority string, run catalog.Run) http.H
 		o.Connected = o.Connected && time.Since(o.ReceivedAt) < 10*time.Second
 		reply(w, o)
 	})
-	return boundary(authority, "", mux)
+	return boundary("", mux)
 }

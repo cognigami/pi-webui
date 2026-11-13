@@ -87,21 +87,29 @@ For tablet access:
    ./bin/rai serve -config configs/lan.json
    ```
 
-4. On the tablet, open `http://192.168.1.50:8484`, substituting that same actual
-   host IP/port. The tablet must be on a network that can reach the host and its
-   firewall must allow the chosen port. Use that LAN URL on the host too; the
-   service listens on one explicitly selected address, not every interface.
+4. On the tablet, open `http://192.168.1.50:8484`, substituting that actual
+   host IP/port, or use the machine's DNS/mDNS name (for example,
+   `http://your-mac.local:8484`). No hostname registration or allowlist is needed.
+   The name must resolve to the listening address, the tablet must be able to
+   reach it, and the firewall must allow the port. RAI still listens on one
+   explicitly selected address, not every interface.
 
 A Tailscale host IP is also supported. The address must belong to your host;
 see [loopback example](configs/example.json) to revert to local-only access.
 Changing address/port does not require reloading Pi or changing the bridge
 socket. The extension reconnects when RAI restarts.
 
-Wildcard/public binding is refused. There is
-**no login or TLS**: expose only to a trusted LAN/Tailscale network and apply
-appropriate firewall controls. Origin/Host/CSRF checks are not authentication
-against another untrusted LAN client. A proxy/alternate hostname/HTTPS origin is
-not configured by this literal-IP deployment surface; do not expose it publicly.
+Wildcard/public binding is refused. There is **no login or TLS**: expose only
+on a trusted LAN/Tailscale network and apply appropriate firewall controls.
+HTTP hostname aliases and forwarded browser ports need no RAI configuration;
+Origin must still match the browser's request Host, and controls require the
+per-start CSRF token. Cross-site requests are rejected and no permissive CORS is
+provided. HTTPS reverse-proxy support is not configured by this HTTP-only service.
+
+This deliberately simple LAN mode has **no Host allowlist or DNS-rebinding
+protection**. LAN-only binding does not itself protect against a hostile website
+using DNS rebinding. Origin/CSRF checks are not authentication; anyone who can
+reach RAI directly can access its sessions and controls. Do not expose it publicly.
 
 When overriding `socket`, give participating Pi processes the same
 `RAI_SOCKET=/absolute/private/bridge.sock` environment value. Starting/stopping

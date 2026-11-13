@@ -133,7 +133,7 @@ Browser checks for session selection/rename/disappearance, missing integration, 
 - Implement enablement, outstanding-request/double-tap prevention, exact text capture, read-only pending review, and deliberate reuse after failure/uncertainty. Busy alone does not disable Send; known unsupported input states do.
 - Implement design §5 feedback and lifetime rules using only available evidence. Keep dispatch, acceptance-unconfirmed, known no-side-effect failure, and unknown outcome distinct. Do not infer acceptance from matching text or add permanent user-message duplicates.
 - Keep Stop usable while Send feedback is pending; do not wait for Pi's response. Use **Stop requested** or **Stop outcome unknown** as appropriate, without claiming an unobserved completed stop.
-- Protect the browser boundary before enabling controls: permitted Host/Origin handling, framework-appropriate CSRF, no state-changing GET, no permissive CORS, and origin rejection for WebSockets if used. Disable automatic browser/client/adapter retries of Send/Stop.
+- Protect the browser boundary before enabling controls: request-matching Origin, framework-appropriate CSRF, no state-changing GET, no permissive CORS, and origin rejection for WebSockets if used. Disable automatic browser/client/adapter retries of Send/Stop.
 
 **Checks**
 
@@ -296,11 +296,15 @@ The blur/value, folder-context/rename and quiet independent-Stop assertions pass
 
 The operator approved the middle preview: **“Nailed it. Well done.”** The production stylesheet now matches that proposal: warm light-gray ground, near-white cards/chrome, quiet stone boundaries, neutral ordinary controls and a slate Send with white text. Existing inset input focus, blur collapse, folder context and quiet normal dispatch remain. This is the single default palette, not a theme selector. README/design and their representative image links now describe this approved state. The embedded assets were rebuilt and focused CSS/render validation passed; no running RAI/Pi service or user configuration was changed. Restart only RAI when ready to load the rebuilt assets.
 
-### Deferred follow-up: SSH tunnel access
+### Operator choice: simple trusted-LAN hostname access
 
-The operator reports **Host not permitted** when accessing RAI through an SSH tunnel; currently they must remote-view the host machine to use the page. Record this as an unresolved access defect, not a requirement to use remote desktop. No tunnel/configuration/security changes were requested for this turn.
+The operator found literal-IP-only access too restrictive and explicitly asked to keep LAN use simple. Removed the HTTP Host allowlist rather than adding alias registration, automatic hostname discovery or a security-mode setting. The configured listener remains an explicit loopback/private LAN/Tailscale address; wildcard/public binding is still refused. Browser machine names and forwarded HTTP ports now work without RAI configuration when networking routes them to that listener. Origin must still match each request Host; per-start CSRF, cross-site rejection, CSP, inert content and no automatic control replay are unchanged. The handler no longer takes a listener authority it does not use.
 
-Likely cause: HTTP forwarding preserves the browser-facing Host, while RAI currently allowlists the listener IP/localhost at the listener port. A different local tunnel port or hostname will not match. The exact browser URL, local/remote forwarding endpoints and RAI listen address have not yet been checked; confirm them when addressing this. Support the intended tunneled browser authority while preserving Host/Origin/CSRF protections, rather than allowing arbitrary hosts or disabling the checks.
+This intentionally gives up the Host-based DNS-rebinding defense; LAN-only binding is not that defense, and there is no login/authentication against reachable clients. The tradeoff was explained to the operator and is explicit in README/design. Request tests cover DNS/mDNS/short-name/IP/IPv6/forwarded-port access, valid same-origin control, mismatched Origin, cross-site rejection, missing/stale CSRF and HTTP default-port canonicalization. Build/lint/full tests passed; no running service, Pi session, user LAN config or LaunchAgent was changed.
+
+### SSH tunnel access — Host restriction removed, actual forwarding unverified
+
+The earlier **Host not permitted** report was caused by the literal-authority allowlist. That application restriction is now removed, including alternate browser-side HTTP ports. The exact forwarding setup has not been exercised, so do not claim end-to-end tunnel acceptance: the tunnel must still connect to RAI's actual bound address and port. Origin/CSRF protections remain. The previously proposed hostname-allowlist configuration is superseded by the operator's simple LAN choice.
 
 ### First live phase — completed within the approved bounds
 

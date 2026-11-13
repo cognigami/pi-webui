@@ -64,7 +64,7 @@ func run(args []string) error {
 		}
 		defer httpListener.Close()
 		server := bridge.New()
-		handler, err := web.App(server, authority, catalog.Command)
+		handler, err := web.App(server, catalog.Command)
 		if err != nil {
 			return err
 		}
