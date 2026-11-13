@@ -17,6 +17,8 @@
   <dict>
     <key>HOME</key>
     <string>/Users/you</string>
+    <key>HERDR_SOCKET_PATH</key>
+    <string>/Users/you/.config/herdr/herdr.sock</string>
     <key>PATH</key>
     <string>/Users/you/.local/bin:/opt/local/bin:/opt/local/sbin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
