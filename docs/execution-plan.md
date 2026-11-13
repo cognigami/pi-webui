@@ -306,7 +306,7 @@ This intentionally gives up the Host-based DNS-rebinding defense; LAN-only bindi
 
 The earlier **Host not permitted** report was caused by the literal-authority allowlist. That application restriction is now removed, including alternate browser-side HTTP ports. The exact forwarding setup has not been exercised, so do not claim end-to-end tunnel acceptance: the tunnel must still connect to RAI's actual bound address and port. Origin/CSRF protections remain. The previously proposed hostname-allowlist configuration is superseded by the operator's simple LAN choice.
 
-### Per-user LaunchAgent prepared — administrator binary install/load pending
+### Per-user LaunchAgent installed and running
 
 The operator requested automatic service startup and confirmed the manual RAI was stopped. Process inspection with `/bin/ps` was denied during initial inspection; work paused, then resumed after the operator explicitly directed **no ps** and confirmed stopped state. No alternate process inspection was used. The operator chose `/opt/local/bin/rai` and **pi-webui** for new installation directories/job names.
 
@@ -314,7 +314,7 @@ Implemented safe crash-start behavior for the existing private bridge: hold an o
 
 Prepared `configs/launchd.example.plist` and installed a validated user-specific plist at `~/Library/LaunchAgents/com.user.pi-webui.plist`: direct `/opt/local/bin/rai`, active config `~/.config/pi-webui/config.json`, logs `~/Library/Logs/pi-webui/pi-webui.log`, discovery PATH and KeepAlive. The operator renamed the initially created config/log folders to pi-webui and removed the temporary `~/.local/bin/rai` copy after outside-repository rename/delete tools refused those operations. Those old artifacts are not intentionally retained. The original checkout LAN config is unchanged; existing bridge address remains compatible with loaded extensions.
 
-The target `/opt/local/bin/rai` is absent and its directory requires administrator permission. No privileged copy or launchctl load has been performed. The remaining operator step is installing the built binary with sudo and bootstrapping the prepared user job. KeepAlive starts it; no separate kickstart is required. No claim of launchd/health/restart acceptance is made until it actually runs. No Pi session was reloaded, stopped, read for validation or sent controls.
+The operator installed `/opt/local/bin/rai` with administrator permission and bootstrapped the prepared job. A subsequent exact-job `launchctl print gui/501/com.user.pi-webui` confirmed it running with the intended binary, installed config/log paths, discovery PATH and KeepAlive. The LAN `/health` endpoint returned HTTP 200 with `status: ok`. Startup under launchd is now checked; crash/restart recovery is covered by socket fixtures but has not been fault-injected into the running user service. No `/bin/ps`, Pi reload/stop, private history read or control dispatch was used for this verification.
 
 ### First live phase — completed within the approved bounds
 
