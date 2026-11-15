@@ -131,6 +131,84 @@ func TestPartialDiscoveryRetainsKnownRows(t *testing.T) {
 		}
 	}
 }
+func TestDisplayNamePrecedenceDoesNotEstablishOwnership(t *testing.T) {
+	t.Setenv("HERDR_SOCKET_PATH", "/herdr.sock")
+	for _, tc := range []struct {
+		name, backend, muxName, piName, want, ownership string
+	}{
+		{"neither-name", "none", "", "", "Unnamed session", "unverified"},
+		{"pi-only", "none", "", "Research", "Research", "unverified"},
+		{"matching-name-is-not-ownership", "none", "same", "same", "same", "unverified"},
+		{"herdr-first", "herdr", "Mux name", "Pi name", "Mux name", "single-context"},
+		{"herdr-missing", "herdr", "", "Pi name", "Pi name", "single-context"},
+		{"herdr-no-names", "herdr", "", "", "Unnamed session", "single-context"},
+		{"node-is-a-name", "herdr", "node", "Pi name", "node", "single-context"},
+		{"number-is-a-name", "herdr", "1", "Pi name", "1", "single-context"},
+		{"literal-placeholder-is-a-name", "herdr", "Unnamed session", "Pi name", "Unnamed session", "single-context"},
+		{"tmux-title-first", "tmux", "Mux title", "Pi name", "Mux title", "single-context"},
+		{"tmux-missing", "tmux", "", "Pi name", "Pi name", "single-context"},
+		{"ambiguous-remains-ambiguous", "both", "Mux name", "Pi name", "Ambiguous multiplexer context", "ambiguous"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := bridge.Host{Cwd: "/a"}
+			if tc.backend == "herdr" || tc.backend == "both" {
+				h.HerdrPane = "w1:p1"
+				h.HerdrSocket = "/herdr.sock"
+			}
+			if tc.backend == "tmux" || tc.backend == "both" {
+				h.TMUXPane = "%1"
+				h.TMUXSocket = "/tmux.sock"
+			}
+			o := bridge.Observation{Snapshot: bridge.Snapshot{Target: bridge.Target{EndpointID: "stable", AssociationID: "branch"}, Host: h, Session: bridge.Session{ID: "session", Name: tc.piName}}}
+			run := func(ctx context.Context, name string, args ...string) ([]byte, error) {
+				if name == "tmux" && len(args) == 5 {
+					if args[4] == "#{window_name}" {
+						return []byte("\n"), nil
+					}
+					if args[4] == "#{pane_title}" {
+						return []byte(tc.muxName + "\n"), nil
+					}
+				}
+				data, err := fakeRun(ctx, name, args...)
+				return []byte(strings.ReplaceAll(string(data), `"same"`, `"`+tc.muxName+`"`)), err
+			}
+			listing := Discover(context.Background(), []bridge.Observation{o}, run)
+			var found bool
+			for _, row := range listing.Rows {
+				if row.EndpointID == "stable" {
+					found = true
+					if row.Label != tc.want || row.Ownership != tc.ownership || row.Observation.Snapshot.AssociationID != "branch" || row.Observation.Snapshot.Session.ID != "session" {
+						t.Fatalf("unexpected name/identity: %+v", row)
+					}
+				} else if tc.muxName == "" && row.Label != "Unnamed session" {
+					t.Fatal("unnamed discovered pane borrowed a Pi name", row)
+				}
+			}
+			if !found {
+				t.Fatal("lost endpoint")
+			}
+		})
+	}
+}
+func TestPiNameRenameDoesNotCreateOwnershipOrChangeIdentity(t *testing.T) {
+	o := bridge.Observation{Snapshot: bridge.Snapshot{Target: bridge.Target{EndpointID: "stable", AssociationID: "branch"}, Session: bridge.Session{ID: "session", Name: "First"}}}
+	missing := func(context.Context, string, ...string) ([]byte, error) { return nil, errors.New("no multiplexer") }
+	for _, name := range []string{"First", "Renamed", ""} {
+		o.Snapshot.Session.Name = name
+		listing := Discover(context.Background(), []bridge.Observation{o}, missing)
+		if len(listing.Rows) != 1 {
+			t.Fatal(listing)
+		}
+		row := listing.Rows[0]
+		want := name
+		if want == "" {
+			want = "Unnamed session"
+		}
+		if row.Label != want || row.Ownership != "unverified" || row.EndpointID != "stable" || row.Observation.Snapshot.AssociationID != "branch" {
+			t.Fatal(row)
+		}
+	}
+}
 func TestRenameDoesNotChangeEndpointOrAssociation(t *testing.T) {
 	t.Setenv("HERDR_SOCKET_PATH", "/herdr.sock")
 	observations := []bridge.Observation{{Snapshot: bridge.Snapshot{Target: bridge.Target{EndpointID: "stable", AssociationID: "branch"}, Host: bridge.Host{HerdrPane: "w1:p1", HerdrSocket: "/herdr.sock"}}}}

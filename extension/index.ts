@@ -219,6 +219,7 @@ export class Observation {
       },
       session: {
         id: sm.getSessionId(),
+        name: sm.getSessionName(),
         file: sm.getSessionFile() ?? null,
         leaf: sm.getLeafId(),
         cutoff: this.cutoff,

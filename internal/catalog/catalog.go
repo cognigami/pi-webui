@@ -132,9 +132,6 @@ func Herdr(ctx context.Context, run Run, scope string) ([]Pane, error) {
 		if label == "" {
 			label = labels[a.Tab]
 		}
-		if label == "" {
-			label = "Unnamed session"
-		}
 		panes = append(panes, Pane{"herdr", scope, a.Pane, label, a.Workspace + " · " + a.Pane, a.Cwd, true})
 	}
 	return panes, errors.Join(failures...)
@@ -169,9 +166,6 @@ func TMUX(ctx context.Context, run Run) ([]Pane, error) {
 		label := values[1]
 		if label == "" {
 			label = values[2]
-		}
-		if label == "" {
-			label = "Unnamed session"
 		}
 		pane := Pane{"tmux", values[0], id, label, values[3] + " · " + id, values[4], values[5] == "pi"}
 		// tmux can report Node's executable name even when Pi's process command
@@ -210,6 +204,18 @@ func nodePi(ctx context.Context, run Run, paneID string) (bool, error) {
 	}
 	return false, nil
 }
+
+// Names are display metadata only; they never establish a pane match or ownership.
+func displayName(muxName, piName string) string {
+	if muxName != "" {
+		return muxName
+	}
+	if piName != "" {
+		return piName
+	}
+	return "Unnamed session"
+}
+
 func Discover(ctx context.Context, observations []bridge.Observation, run Run) Listing {
 	result := Listing{Rows: []Row{}, Failures: map[string]string{}, Coverage: []string{
 		"Herdr: inherited/default server only. tmux: default/inherited server only.",
@@ -229,7 +235,7 @@ func Discover(ctx context.Context, observations []bridge.Observation, run Run) L
 	claimed := map[int]bool{}
 	for i := range observations {
 		o := observations[i]
-		row := Row{EndpointID: o.Snapshot.EndpointID, Label: "Unnamed session", Context: o.Snapshot.Host.Cwd, Integration: "connected", Ownership: "unverified", Panes: []Pane{}, Observation: &o}
+		row := Row{EndpointID: o.Snapshot.EndpointID, Label: displayName("", o.Snapshot.Session.Name), Context: o.Snapshot.Host.Cwd, Integration: "connected", Ownership: "unverified", Panes: []Pane{}, Observation: &o}
 		h := o.Snapshot.Host
 		for n, p := range panes {
 			match := p.Backend == "herdr" && h.HerdrPane != "" && h.HerdrPane == p.ID && h.HerdrSocket == p.Scope ||
@@ -240,7 +246,7 @@ func Discover(ctx context.Context, observations []bridge.Observation, run Run) L
 			}
 		}
 		if len(row.Panes) == 1 {
-			row.Label = row.Panes[0].Label
+			row.Label = displayName(row.Panes[0].Label, o.Snapshot.Session.Name)
 			row.Context = row.Panes[0].Context + " · " + h.Cwd
 			row.Ownership = "single-context"
 		}
@@ -252,7 +258,7 @@ func Discover(ctx context.Context, observations []bridge.Observation, run Run) L
 	}
 	for n, p := range panes {
 		if !claimed[n] && p.Identified {
-			result.Rows = append(result.Rows, Row{Label: p.Label, Context: p.Context, Integration: "unavailable", Ownership: "discovered", Panes: []Pane{p}})
+			result.Rows = append(result.Rows, Row{Label: displayName(p.Label, ""), Context: p.Context, Integration: "unavailable", Ownership: "discovered", Panes: []Pane{p}})
 		}
 	}
 	sort.SliceStable(result.Rows, func(i, j int) bool {

@@ -73,6 +73,9 @@ the lock. The empty lock file stays in place; do not delete it while RAI runs.
 it to `~/Library/LaunchAgents/com.user.pi-webui.plist`. It runs `/opt/local/bin/rai`
 with `~/.config/pi-webui/config.json`, writes to
 `~/Library/Logs/pi-webui/pi-webui.log`, and supplies PATH for Herdr/tmux discovery.
+Its `HERDR_SOCKET_PATH` must match the Herdr server used by participating Pi
+sessions (the template uses `~/.config/herdr/herdr.sock`); discovery without the
+same server namespace cannot establish pane ownership.
 Create those configuration/log directories first (mode 0700) and copy your chosen
 LAN config to the installed config path (mode 0600). Keep the checkout's original
 config unchanged; the installed copy is the LaunchAgent's active configuration.
@@ -169,6 +172,12 @@ live Pi conversation.
 
 ## Browser behavior
 
+- Display the Herdr/tmux name first, then an existing Pi session name if the
+  multiplexer has no name, then **Unnamed session**. Names are not generated,
+  and labels like `node` or `1` are not judged or replaced. This is display-only:
+  a Pi name does not establish ownership or enable controls. Older loaded
+  extensions need an explicit `/reload` in each chosen idle session to report
+  the optional name; new sessions load it normally.
 - Select by existing labels plus brief project/folder context; labels and folders
   never become control targets. Folder context remains in the header; opaque
   workspace/pane IDs are not useful navigation labels and are not displayed.

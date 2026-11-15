@@ -13,6 +13,7 @@ function host() {
   let leaf: string | null = "entry-1";
   let idle = true;
   let conversationStarted = true;
+  let sessionName: string | undefined;
   let editor = "desktop draft";
   let aborted = 0;
   const calls: { text: unknown; options: unknown }[] = [];
@@ -34,6 +35,7 @@ function host() {
             ]
           : [{ type: "model_change", id: "setup", parentId: null }],
       getSessionId: () => "fixture-session",
+      getSessionName: () => sessionName,
       getSessionFile: () => "/synthetic/session.jsonl",
       getEntry: (id: string) => ({ id, parentId: null }),
     },
@@ -58,6 +60,9 @@ function host() {
     ctx,
     pi,
     calls,
+    setName: (value: string | undefined) => {
+      sessionName = value;
+    },
     setLeaf: (id: string) => {
       leaf = id;
     },
@@ -103,6 +108,22 @@ test("setup-only in-memory leaf is not a persisted cutoff before the first conve
     message: { role: "assistant", content: [] },
   } as never);
   assert.equal(o.snapshot().session.cutoff, "saved-first-user");
+});
+test("existing session name is optional live metadata, never target identity", () => {
+  const h = host(),
+    o = new Observation(h.ctx, h.pi);
+  const initial = o.snapshot();
+  assert.equal(initial.session.name, undefined);
+  h.setName("Research");
+  assert.equal(o.snapshot().session.name, "Research");
+  h.setName("Research renamed");
+  const renamed = o.snapshot();
+  assert.equal(renamed.session.name, "Research renamed");
+  assert.equal(renamed.endpointId, initial.endpointId);
+  assert.equal(renamed.associationId, initial.associationId);
+  assert.equal(renamed.session.id, initial.session.id);
+  h.setName(undefined);
+  assert.equal(o.snapshot().session.name, undefined);
 });
 test("shared wire fixture and validation", () => {
   const fixture = JSON.parse(

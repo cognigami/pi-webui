@@ -20,6 +20,7 @@ export interface Snapshot extends Target {
   };
   session: {
     id: string;
+    name?: string;
     file: string | null;
     leaf: string | null;
     cutoff: string | null;

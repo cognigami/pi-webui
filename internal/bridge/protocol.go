@@ -25,6 +25,7 @@ type EntryRef struct {
 }
 type Session struct {
 	ID     string     `json:"id"`
+	Name   string     `json:"name,omitempty"`
 	File   *string    `json:"file"`
 	Leaf   *string    `json:"leaf"`
 	Cutoff *string    `json:"cutoff"`

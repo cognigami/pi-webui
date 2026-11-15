@@ -82,6 +82,7 @@ test("Go/TS roundtrip, literal controls, restart, fresh identity, and no replay"
       getEntries: () => [],
       getEntry: () => undefined,
       getSessionId: () => "synthetic-session",
+      getSessionName: () => "Synthetic existing name",
       getSessionFile: () => undefined,
     },
   } as unknown as ExtensionContext;
@@ -124,6 +125,7 @@ test("Go/TS roundtrip, literal controls, restart, fresh identity, and no replay"
   };
   const first = await observed();
   assert.equal(first.snapshot.associationId, observation.associationId);
+  assert.equal(first.snapshot.session.name, "Synthetic existing name");
   const control = async (
     operation: string,
     endpoint = observation.endpointId,
