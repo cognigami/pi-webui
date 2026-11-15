@@ -25,7 +25,7 @@ not a production browser dependency. Temporary test files are repo-local under
 ignored `.rai-investigation/`.
 
 Focused examples: `just test internal/history`, `just test internal/web`,
-`just test internal/web/assets/client.test.js`, `just lint extension/index.ts`.
+`just test internal/web/assets/client.test.js`, `just lint extensions/pi-webui/index.ts`.
 
 ## Run
 
@@ -44,14 +44,24 @@ panels or stale unreachable choices.
 chosen **new** interactive Pi session, use its supported explicit extension load:
 
 ```sh
-pi --presets:preset eng -e /absolute/path/to/pi-webui/extension/index.ts
+pi --presets:preset eng -e /absolute/path/to/pi-webui/extensions/pi-webui/index.ts
 ```
 
-For regular installation, add the absolute path to `extension/index.ts` to the
-existing `"extensions"` array in `~/.pi/agent/settings.json`, preserving all other
-entries/settings. New interactive Pi sessions load it automatically; explicitly
-run `/reload` in each chosen idle existing session to load it there. No copying
-of the extension's individual files is needed. Building/starting RAI never
+For regular installation, register the checkout as a local Pi package:
+
+```sh
+pi install /absolute/path/to/pi-webui
+```
+
+The package is named **pi-webui** and declares one entrypoint,
+`extensions/pi-webui/index.ts`, so Pi displays `pi-webui/index.ts` instead of the
+old generic `extension/index.ts`. Existing local-package installations keep the
+same repository path and need no reinstall. If you configured the old entrypoint
+directly in settings or launch arguments, replace it with the new path or use the
+package installation above. There is no compatibility entrypoint that could load
+a second copy. New interactive Pi sessions load it automatically; explicitly run
+`/reload` in each chosen idle existing session to pick up the renamed resource.
+No copying of the extension's individual files is needed. Building/starting RAI never
 installs it or reloads Pi. Only interactive TUI mode participates.
 
 If nothing is connected, check that the extension loaded without terminal errors

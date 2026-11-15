@@ -1,3 +1,4 @@
 /node_modules/
 /bin/
 /.rai-investigation/
+.DS_Store

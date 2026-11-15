@@ -323,11 +323,11 @@ Concrete ownership map (one coordinator currently owns all writes):
 | Slice/owner | Paths |
 | --- | --- |
 | P1 coordinator/shared | `go.mod`, `package.json`, lockfile, `tsconfig.json`, `biome.json`, `Justfile`, `.gitignore`, `cmd/rai/`, `internal/config/`, `docs/`, `README.md` |
-| P2 bridge owner | `extension/`, `internal/bridge/`, `internal/catalog/`, `internal/web/diagnostic.go` and focused tests |
+| P2 bridge owner | `extensions/pi-webui/`, `internal/bridge/`, `internal/catalog/`, `internal/web/diagnostic.go` and focused tests |
 | P3 history owner, handed back to coordinator | `internal/history/reader.go`, `reader_test.go`; projection integration stays in the existing extension snapshot + web adapter, not a competing reader/module |
 | P4/P5 coordinator | `internal/web/app.go`, `internal/web/assets/{index.html,style.css,app.js,model.js}` and request/model/DOM tests |
 
-`internal/bridge` owns Go wire structs and connected endpoint state; `extension/protocol.ts` owns the small matching TS wire types. This deliberate two-language boundary is checked with shared synthetic wire fixtures/tests, not a schema framework. No extension file-history parser. `Justfile` exposes build/lint/test; focused tests accept Go package paths, extension tests or browser JS test files. Dependencies use the manifest/lock and supported deps tool (fresh-clone installation in README); build type-checks the extension and produces the Go binary with embedded browser assets. The history reader rescans bounded raw data read-only, with an ephemeral offset index and bounded file identity/prefix-digest observations, never a transcript archive.
+`internal/bridge` owns Go wire structs and connected endpoint state; `extensions/pi-webui/protocol.ts` owns the small matching TS wire types. This deliberate two-language boundary is checked with shared synthetic wire fixtures/tests, not a schema framework. No extension file-history parser. `Justfile` exposes build/lint/test; focused tests accept Go package paths, extension tests or browser JS test files. Dependencies use the manifest/lock and supported deps tool (fresh-clone installation in README); build type-checks the extension and produces the Go binary with embedded browser assets. The history reader rescans bounded raw data read-only, with an ephemeral offset index and bounded file identity/prefix-digest observations, never a transcript archive.
 
 ## 10. Implementation validation
 

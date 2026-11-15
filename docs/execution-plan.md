@@ -324,6 +324,12 @@ At the operator's subsequent request, snapshots now carry optional `session.name
 
 Build/lint/full tests passed, including a Go/TS name roundtrip, optional/renamed/removed metadata, both backend precedence/missing-name cases, literal placeholder names, legacy snapshots, and unchanged endpoint/association/ownership. Deployment is operator-owned: install the rebuilt binary in `/opt/local/bin/rai`, bootout/bootstrap the job, and explicitly `/reload` each chosen idle existing Pi that needs to report its name. No service or Pi reload, privileged copy, control dispatch or private-conversation read was performed for this feature.
 
+### Extension resource named pi-webui
+
+Renamed the generic `extension/` directory to `extensions/pi-webui/` and the private package from `rai-extension` to `pi-webui`. Pi's path-derived resource label is now `pi-webui/index.ts`. The manifest declares exactly that one entrypoint; no old-path wrapper or alias can load a second bridge. Updated TypeScript/Biome/Justfile paths, shared fixture locations, lockfile workspace-name metadata and current documentation; earlier execution records below retain their historical paths.
+
+The operator's global package declaration is a relative path resolving to this unchanged checkout, so it does not need settings changes or reinstallation. Chosen idle Pi sessions pick up the renamed resource on `/reload`; directly configured old entrypoint paths must be updated. This rename changes neither extension behavior nor the service binary/job. Build/lint/full tests pass, including a packaging assertion for the name/single entrypoint. No global configuration change, service restart or Pi reload was performed.
+
 ### First live phase — completed within the approved bounds
 
 The operator approved the disposable live-test phase, then explicitly disabled the sandbox after its Unix-socket connect denial. The denied first Send had no dispatch side effect; the same request was retried after that guidance. The first phase stayed within 20 minutes per backend (Herdr targets started 2026-11-10 23:57 UTC; tmux targets 2026-11-11 00:03 UTC). Testing used macOS x86_64, installed Pi 1.5.2, Herdr client/server 0.9.3 and tmux 3.7b, with the configured model `openai-codex/gpt-6.1-sol`. All model tools except the benign fixture wait tool were disabled. The scope below records the approved envelope, not completion of every check it permitted. Broader phases still require agreement.

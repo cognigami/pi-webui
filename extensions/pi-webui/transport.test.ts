@@ -14,7 +14,10 @@ import { Transport, Writer } from "./transport.ts";
 
 function snapshot(seq = 1): Snapshot {
   const value = JSON.parse(
-    readFileSync(new URL("../testdata/snapshot.json", import.meta.url), "utf8"),
+    readFileSync(
+      new URL("../../testdata/snapshot.json", import.meta.url),
+      "utf8",
+    ),
   ) as Snapshot;
   value.seq = seq;
   return value;

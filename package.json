@@ -1,5 +1,5 @@
 {
-  "name": "rai-extension",
+  "name": "pi-webui",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
   },
   "pi": {
     "extensions": [
-      "./extension/index.ts"
+      "./extensions/pi-webui/index.ts"
     ]
   },
   "devDependencies": {

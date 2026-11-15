@@ -13,6 +13,6 @@
     ]
   },
   "include": [
-    "extension/**/*.ts"
+    "extensions/pi-webui/**/*.ts"
   ]
 }

@@ -91,6 +91,13 @@ function req(
     text,
   };
 }
+test("package exposes one pi-webui extension entrypoint", () => {
+  const pkg = JSON.parse(
+    readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(pkg.name, "pi-webui");
+  assert.deepEqual(pkg.pi.extensions, ["./extensions/pi-webui/index.ts"]);
+});
 test("setup-only in-memory leaf is not a persisted cutoff before the first conversation message", () => {
   const h = host();
   h.setConversation(false);
@@ -127,7 +134,10 @@ test("existing session name is optional live metadata, never target identity", (
 });
 test("shared wire fixture and validation", () => {
   const fixture = JSON.parse(
-    readFileSync(new URL("../testdata/snapshot.json", import.meta.url), "utf8"),
+    readFileSync(
+      new URL("../../testdata/snapshot.json", import.meta.url),
+      "utf8",
+    ),
   ) as Snapshot;
   assert.equal(fixture.version, 1);
   assert.equal(fixture.session.sample[0].parentId, null);
