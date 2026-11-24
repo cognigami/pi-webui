@@ -108,14 +108,16 @@ A selected conversation that loses its connection keeps its cached content and a
 
 ### 3.4 Explicit terminal-tab rename
 
-Long-press a connected selector entry or the conversation header to open the
-name editor directly, with no intermediate menu. A normal selector tap still
+Hold a connected selector entry or the conversation header, then release to
+open the name editor directly, with no intermediate menu. The hold is recognised
+while pressed, but the editor opens only on release so the original touch cannot
+continue selecting text inside the newly opened dialog. A normal selector tap still
 selects; movement/scrolling, pointer cancellation and early release cancel the
 hold. F2 on a selector entry and **View options → Rename tab** provide keyboard
 and ordinary button alternatives. The native modal offers a name field, Save,
-and Cancel; Cancel makes no change. Hold targets and the dialog heading suppress
-native text selection/callouts (including WebKit), so a held touch cannot select
-the heading as it opens; the name field retains normal editing and selection.
+and Cancel; Cancel makes no change. Hold targets and the dialog heading also
+suppress native text selection/callouts (including WebKit); the name field
+retains normal editing and selection.
 Save preserves the entered name rather than trimming it. Names must be nonblank, valid UTF-8, at most 256 UTF-8 bytes and free
 of control characters.
 

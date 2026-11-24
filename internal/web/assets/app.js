@@ -557,14 +557,17 @@ export function renderTimeline(doc, view, entries, helpers, options = {}) {
   return { nodes, continuation: group };
 }
 
+// Recognise a hold, then open on release so it cannot select dialog text.
 // Leave normal taps/scrolling alone; a completed hold consumes its click.
 export function onLongPress(target, action) {
   let timer,
     start,
+    armed = false,
     held = false;
   const cancel = () => {
     clearTimeout(timer);
     timer = undefined;
+    armed = false;
   };
   target.addEventListener("pointerdown", (event) => {
     cancel();
@@ -573,9 +576,7 @@ export function onLongPress(target, action) {
     start = { x: event.clientX, y: event.clientY };
     timer = setTimeout(() => {
       timer = undefined;
-      if (!target.isConnected) return;
-      held = true;
-      action();
+      armed = target.isConnected;
     }, 550);
   });
   target.addEventListener("pointermove", (event) => {
@@ -585,7 +586,14 @@ export function onLongPress(target, action) {
     )
       cancel();
   });
-  for (const type of ["pointerup", "pointercancel", "pointerleave"])
+  target.addEventListener("pointerup", () => {
+    const activate = armed && target.isConnected;
+    cancel();
+    if (!activate) return;
+    held = true;
+    action();
+  });
+  for (const type of ["pointercancel", "pointerleave"])
     target.addEventListener(type, cancel);
   target.addEventListener("contextmenu", (event) => event.preventDefault());
   target.addEventListener(

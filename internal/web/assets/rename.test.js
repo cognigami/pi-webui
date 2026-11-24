@@ -45,14 +45,26 @@ test("long press opens directly, consumes the click, and leaves taps/scrolls/can
   assert.equal(held, 0);
   pointer(window, target, "pointerdown");
   await delay(580);
-  assert.equal(held, 1);
+  assert.equal(held, 0, "the dialog must not open under a held pointer");
   pointer(window, target, "pointerup");
+  assert.equal(held, 1);
   pointer(window, target, "click", { detail: 1 });
   assert.equal(clicked, 1);
   pointer(window, target, "pointerdown");
   pointer(window, target, "pointerup");
   target.click();
   assert.equal(clicked, 2);
+  for (const type of ["pointercancel", "pointerleave", "pointermove"]) {
+    pointer(window, target, "pointerdown");
+    await delay(580);
+    pointer(window, target, type, { clientY: 30 });
+    pointer(window, target, "pointerup");
+    assert.equal(
+      held,
+      1,
+      "cancellation also disarms an already recognised hold",
+    );
+  }
 });
 
 function row(id) {
@@ -160,8 +172,10 @@ test("selector hold renames its own tab without selecting it; Save refreshes rea
   // An unchanged chooser redraw must preserve the hold target.
   app.select(rows[0]);
   assert.equal(button.isConnected, true);
-  await until(() => $("rename").open);
+  await delay(580);
+  assert.equal($("rename").open, false);
   pointer(window, button, "pointerup");
+  assert.equal($("rename").open, true);
   pointer(window, button, "click", { detail: 1 });
   assert.equal($("recipient").textContent, "Original a");
   assert.equal($("sessions").open, true);
@@ -205,8 +219,10 @@ test("header hold opens rename directly; stale failure stays visible without inv
   app.select(rows[0]);
   await until(() => !$("rename-button").disabled);
   pointer(window, $("recipient"), "pointerdown");
-  await until(() => $("rename").open);
+  await delay(580);
+  assert.equal($("rename").open, false);
   pointer(window, $("recipient"), "pointerup");
+  assert.equal($("rename").open, true);
   fail();
   $("rename-name").value = "No phantom alias";
   $("rename-form").dispatchEvent(
@@ -227,7 +243,9 @@ test("a hold with no pointer click does not swallow the next keyboard activation
     (node) => node.dataset.sessionKey === "b",
   );
   pointer(window, button, "pointerdown");
-  await until(() => $("rename").open);
+  await delay(580);
+  pointer(window, button, "pointerup");
+  assert.equal($("rename").open, true);
   pointer(window, button, "pointerleave");
   $("rename-cancel").click();
   pointer(window, button, "click", { detail: 0 });
