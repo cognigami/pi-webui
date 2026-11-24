@@ -47,6 +47,12 @@ locally served under OFL, 16px body, 44px targets and moderate spacing. No artwo
 texture, display-scale headings, themes/settings, new framework or remote
 resources. Code alone uses system monospace.
 
+A deliberately separate, removable hierarchy treatment gives **You** cards the
+existing ground tint and quiets disclosure labels with the existing muted text.
+Assistant prose keeps its near-white reading surface. Roles remain explicit;
+expanded content stays readable at the existing sizes and touch targets remain
+44px. This is not a new palette or a commitment to a broader visual redesign.
+
 ### 3.1 Conversation screen
 
 ```text

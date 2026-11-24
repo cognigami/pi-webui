@@ -598,3 +598,12 @@ header > .icon-button {
   }
 }
 /* End restrained UI refinements. */
+
+/* Optional message hierarchy: no behavior or palette changes. */
+.chat-message[data-role="user"] {
+  background: var(--ground);
+}
+.disclosure > button {
+  color: var(--muted);
+}
+/* End optional message hierarchy. */
