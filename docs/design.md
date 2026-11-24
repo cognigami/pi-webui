@@ -113,8 +113,10 @@ name editor directly, with no intermediate menu. A normal selector tap still
 selects; movement/scrolling, pointer cancellation and early release cancel the
 hold. F2 on a selector entry and **View options → Rename tab** provide keyboard
 and ordinary button alternatives. The native modal offers a name field, Save,
-and Cancel; Cancel makes no change. Save preserves the entered name rather than
-trimming it. Names must be nonblank, valid UTF-8, at most 256 UTF-8 bytes and free
+and Cancel; Cancel makes no change. Hold targets and the dialog heading suppress
+native text selection/callouts (including WebKit), so a held touch cannot select
+the heading as it opens; the name field retains normal editing and selection.
+Save preserves the entered name rather than trimming it. Names must be nonblank, valid UTF-8, at most 256 UTF-8 bytes and free
 of control characters.
 
 Rename changes only the actual **Herdr tab / tmux window** containing the Pi

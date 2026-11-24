@@ -608,8 +608,10 @@ header > .icon-button {
 }
 /* End optional message hierarchy. */
 
-.rename-target {
+.rename-target,
+#rename-title {
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 #rename {
