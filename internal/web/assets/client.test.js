@@ -482,12 +482,14 @@ test("deferred expansion keeps its loader focusable then hands off focus without
   assert.equal(doc.activeElement, $("draft"));
   assert.equal(requests, 2);
 });
-test("ordinary submission clears input without adding success feedback to the conversation", {
+test("ordinary submission shows a local copy immediately and reconciles it with retained history", {
   timeout: 10000,
 }, async (t) => {
   const { document: doc, window } = fixtureDOM();
   const $ = (id) => doc.getElementById(id);
   const target = row("success");
+  target.observation.snapshot.session.cutoff = null;
+  const records = [];
   let app,
     calls = 0;
   const original = globalThis.fetch;
@@ -498,7 +500,7 @@ test("ordinary submission clears input without adding success feedback to the co
     if (String(url).startsWith("/conversation/"))
       return response({
         observation: target.observation,
-        history: { entries: [], before: "" },
+        history: { entries: records, before: "" },
       });
     if (url === "/control") {
       calls++;
@@ -523,12 +525,30 @@ test("ordinary submission clears input without adding success feedback to the co
   $("draft").value = "hello";
   $("draft").dispatchEvent(new window.Event("input"));
   $("send-button").click();
+  assert.match($("outgoing").textContent, /YouhelloSending/);
   await until(() => view.pending === null);
   assert.equal(calls, 1);
   assert.equal($("draft").value, "");
   assert.equal($("feedback").textContent, "");
   assert.equal($("send-button").textContent, "Send");
   assert.equal($("messages").textContent.includes("Submitted"), false);
+  assert.match(
+    $("outgoing").textContent,
+    /Submitted · waiting to appear in Pi/,
+  );
+  records.push({
+    id: "sent",
+    parentId: null,
+    type: "message",
+    role: "user",
+    data: { type: "message", message: { role: "user", content: "hello" } },
+  });
+  target.observation.snapshot.seq++;
+  target.observation.snapshot.session.cutoff = "sent";
+  doc.dispatchEvent(new window.Event("visibilitychange"));
+  await until(() => $("messages").textContent.includes("hello"));
+  assert.equal($("outgoing").textContent, "");
+  assert.equal(calls, 1);
 });
 test("normal conversation hides internal session records; View opt-in reveals compact retained details", {
   timeout: 10000,
@@ -728,6 +748,8 @@ test("Send/Stop outcomes stay on original conversation without review UI; editab
   $("send-button").click();
   $("send-button").click();
   await until(() => calls.length === 1);
+  assert.match($("outgoing").textContent, /Sending/);
+  assert.equal($("outgoing").querySelector("p").textContent, literal);
   assert.equal(calls[0].text, literal);
   assert.equal($("composer").hidden, false);
   assert.equal($("draft").rows, 1);
@@ -739,6 +761,7 @@ test("Send/Stop outcomes stay on original conversation without review UI; editab
   assert.equal(calls.length, 2);
   assert.equal(calls[1].operation, "stop");
   app.select(rows[1]);
+  assert.equal($("outgoing").textContent, "");
   resolveSend(
     response({
       type: "result",
@@ -753,6 +776,11 @@ test("Send/Stop outcomes stay on original conversation without review UI; editab
     false,
   );
   app.select(rows[0]);
+  assert.match($("outgoing").textContent, /Delivery uncertain/);
+  $("outgoing").querySelector("button").click();
+  assert.equal($("outgoing").textContent, "");
+  assert.equal(a.draft, literal);
+  assert.equal(calls.length, 2);
   assert.match($("feedback").textContent, /Delivery unconfirmed/);
   assert.equal($("feedback").textContent.includes("Stop requested"), false);
   assert.equal($("review-button"), null);

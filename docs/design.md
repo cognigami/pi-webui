@@ -26,7 +26,7 @@ No session launcher, terminal keyboard emulator, generated summary, unread syste
 2. Choose a session.
 3. See its conversation near the newest content, with one compact real textarea and **Send** / **Stop** actions. The header names the selected conversation using its multiplexer label.
 4. Focus the textarea to expand it for multiline editing and the tablet keyboard. No second input-like button remains on screen. The conversation remains scrollable.
-5. Send a message. The composer collapses and the keyboard is dismissed; only actionable failure/uncertainty feedback appears in the footer; ordinary dispatch completes quietly. Pi receives the message as ordinary input or queues it as steering while working. Show **Steering queued** only when that state can actually be observed.
+5. Send a message. A page-local copy appears immediately with a quiet sending/submitted status. The composer collapses and the keyboard is dismissed; only actionable failure/uncertainty feedback appears in the footer. Pi receives the message as ordinary input or queues it as steering while working. Show **Steering queued** only when that state can actually be observed.
 6. To see another conversation, tap the top-left menu button. The session list opens over the conversation; choosing a session closes it.
 
 At any point, Stop interrupts the selected Pi turn and discards its queued steering messages. Closing the browser or losing connectivity does not stop Pi; reconnecting does not resend input.
@@ -51,7 +51,7 @@ resources. Code alone uses system monospace.
 
 ```text
 +----------------------------------------------------------------+
-| [☰] coordinator · project-name Working                  [View] |
+| [☰] coordinator · directory · Pi name · Working          [eye] |
 +----------------------------------------------------------------+
 | ... conversation history ...                                   |
 | User: ...                                                      |
@@ -71,7 +71,7 @@ Use this structure on tablet and desktop, widening the conversation rather than 
 
 ### 3.2 Session list and tablet keyboard
 
-On first load, show the session list. After selection, show the conversation. The top-left menu button has the accessible label **Sessions** and opens the list as an overlay/drawer. Choosing a session closes it, updates the conversation header, and restores that conversation's draft with the editor initially collapsed. Closing it without choosing leaves the existing conversation unchanged.
+On first load, show the session list. After selection, show the conversation. The top-left menu button has the accessible label **Sessions** and opens the list as a native modal overlay/drawer. A light X closes it at the same top-left position, with the accessible label **Close sessions**; Escape retains native modal behavior. Choosing a session closes it, updates the conversation header, and restores that conversation's draft with the editor initially collapsed. Closing it without choosing leaves the existing conversation unchanged.
 
 The page must remain usable with the software keyboard open: conversation history remains scrollable, no composer or footer action is hidden behind the keyboard, no fixed viewport-height assumption, and no horizontal page scrolling. The footer is shrinkable with a flexible locally scrolling textarea and nonshrinking actions; the live/latest affordance must be included when checking short-viewport allocation, not measured before it appears. Code and tool output may scroll horizontally within their own blocks. Opening the session list does not submit or discard a draft.
 
@@ -92,6 +92,8 @@ Use a stable ordering by display label and keep it steady across activity update
 
 The user does not have to understand multiplexers to choose a session. Existing names and brief context distinguish duplicate labels, and the selected row's context remains beside/below the header label after the chooser closes. Plain activity is visually separate; no persistent idle-not-completion caveat or observation timestamp is needed. The top-right Details debug panel and discovery diagnostics were explicitly removed by the operator; do not expose raw endpoint/session metadata in the normal UI. Do not use directory or display name as the send target.
 
+The conversation header keeps the multiplexer-first primary label, with directory and optional Pi session name as secondary context; activity remains separate. No extra lookup is needed for the Pi name already reported in snapshots.
+
 The human-readable labels should make the coordinator and other agents recognizable in either multiplexer. A coordinator badge is optional when verified metadata already supplies the role; lack of role metadata does not add a warning or require a new designation workflow.
 
 The browser chooser shows only currently connected RAI endpoints, not unreachable/unintegrated Pi candidates. Loading, no connected sessions, and lookup failure remain distinct. On lookup failure, show the error rather than stale unreachable choices. The backend can retain diagnostic discovery coverage internally/API-side; there is no Discovery details panel or unconnected-session section in the browser.
@@ -107,7 +109,8 @@ Read Pi's existing saved history without modifying it. Display the currently sel
 Presentation:
 
 - User and assistant messages have clear roles and preserve paragraph/code formatting. Model/thinking configuration, internal custom data and system setup are session records, not normal chat: hide them by default. View → Show session records reveals quiet collapsed details without changing retained data, ancestry or paging. User-visible extension messages remain available; meaningful compaction/branch boundaries and known errors stay visible. Tools are secondary to the user/assistant exchange.
-- Tool calls show the tool name and available arguments; tool results are expandable, with a compact preview and explicit error treatment.
+- One **Work · Thinking and tools** control groups work for each user-request cycle within the loaded page, ending at a new prompt or meaningful session boundary. Thinking fragments retain their original positions around intervening assistant prose; opening Work never concatenates or moves prose. Work-only output uses quiet tool-style wrappers, not assistant-message cards. **Show session records** retains the individual raw-record presentation.
+- Tool calls and results pair by stable call ID, not name, under one disclosure trigger containing arguments and result. When visible prose intervenes, that trigger also controls an output continuation at the original result position instead of moving the prose or result. Parallel results with no intervening prose appear with their calls in invocation order. In-progress tools and errors remain visible even while Work is closed. Missing/unloaded counterparts stay explicit; live/persisted sources are not merged speculatively.
 - Tool results and thinking blocks start collapsed. Identify thinking only where the saved/live source explicitly exposes it; never infer or generate it. Expanding a block makes its retained content accessible, not silently truncated to the preview.
 - Errors remain visible without opening a successful-looking collapsed card.
 - Unsupported entry types or unavailable content have explicit placeholders rather than fabricated text or silent omission.
@@ -115,9 +118,9 @@ Presentation:
 - Provisional-only updates do not recreate unchanged completed-history nodes, protecting native focus and text selection. An actual retained redraw restores keyed native summaries/load controls. A deferred loader remains focusable while aria-disabled; its existing request guard prevents duplicate fetches. Completion moves focus to the loaded disclosure/summary or a programmatic entry target only when the loader still owns focus, never after the user moved away.
 - Historical approval requests, errors, and waiting messages remain historical. Do not style them as current pending prompts without fresh evidence.
 
-**Expansion controls:** Use the disclosure/accordion pattern, without an exclusive-open restriction. Each tool-result or thinking block has a tappable summary row with a chevron and an expanded/collapsed state. Tap again to collapse; individual blocks are independent. Use real buttons with `aria-expanded` and descriptive labels, not a swipe gesture that conflicts with scrolling or text selection.
+**Expansion controls:** Use the disclosure/accordion pattern, without an exclusive-open restriction. Each work group and tool has a tappable summary row with a chevron and an expanded/collapsed state. Work controls the visibility of its chronological thinking/tool rows; individual/bulk tool expansion can expose tools independently and controls their argument/result bodies. Tap again to collapse; individual blocks are independent. Use real buttons with `aria-expanded` and descriptive labels, not a swipe gesture that conflicts with scrolling or text selection.
 
-A **View** button in the conversation header opens a menu with explicit **Expand all tools**, **Collapse all tools**, **Expand all thinking**, and **Collapse all thinking** actions. A bulk action affects only its content type, including older entries loaded afterward and new entries arriving later. It resets individual choices for that type; individual toggles made afterward override the bulk setting for those blocks. Tool and thinking settings do not affect one another. These choices are per conversation for the lifetime of the open page. If the source cannot distinguish a type, explain that limitation rather than offering controls that pretend to expand it.
+An outlined-eye button with accessible label **View options** in the conversation header opens a menu with explicit **Expand all tools**, **Collapse all tools**, **Expand all thinking**, and **Collapse all thinking** actions. A bulk action affects only its content type, including older entries loaded afterward and new entries arriving later. It resets individual choices for that type; individual toggles made afterward override the bulk setting for those blocks. Tool and thinking settings do not affect one another. These choices are per conversation for the lifetime of the open page. If the source cannot distinguish a type, explain that limitation rather than offering controls that pretend to expand it.
 
 Open at the newest completed content. Load older content in bounded pages through **Load older messages** at the top. Preserve the visible reading anchor when prepending older messages or expanding/collapsing individual blocks. Bulk expansion/collapse should keep the current message anchored where possible; if its content is hidden, anchor to its disclosure header.
 
@@ -179,17 +182,19 @@ This API returns void, not an acceptance promise. Input processing may continue 
 
 ### 5.3 Submission feedback
 
-Show only actionable failure/uncertainty feedback in the compact footer. While pending, the Send button reads **Sending…**; ordinary dispatch clears the input quietly without a Submitted/acceptance notice or invented Sent/queued confirmation. The underlying void API still provides no acceptance proof. The transport distinctions below define failure handling, not extra UI steps:
+Show the outgoing text immediately as a page-local **You** message, with a quiet **Sending…** status. This is optimistic presentation, not a retained Pi record. Show only actionable failure/uncertainty feedback in the compact footer. The underlying void API still provides no acceptance proof; do not invent delivered/read checkmarks. The transport distinctions below define failure handling, not extra UI steps:
 
 | State | UI and behavior |
 | --- | --- |
 | Sending | Collapse the editor and dismiss the keyboard. Keep the submitted text temporarily read-only and show Sending… on the disabled Send button. Prevent double taps from submitting twice. |
-| Submitted; acceptance unconfirmed | The extension reports dispatch was attempted. Clear the input quietly; no visible success notice or archived receipt. The void API return does not prove acceptance, queueing, or execution. |
+| Submitted; acceptance unconfirmed | The extension reports dispatch was attempted. Clear the input and label the local copy **Submitted · waiting to appear in Pi**. The void API return does not prove acceptance, queueing, or execution. |
 | Sent / Steering queued | Show only when the corresponding acceptance or steering-queue state is reliably associated with this submission. The ordinary history entry is authoritative for saved content; do not add a second permanent user message. |
 | Not sent | Use only when failure is known to precede any input side effect. Preserve the text for an explicit retry. |
 | Outcome unknown | Some input may have reached Pi, or the browser lost the response. Retain the text/recipient and say “Check the conversation or terminal before sending again.” Never retry automatically. |
 
-Keep at most one latest inline Send failure/uncertainty per conversation, not normal success feedback or a receipt collection. Starting another deliberate Send replaces that feedback; Stop feedback is independent. One per-view Boolean preserves Stop eligibility if an earlier dispatch remains unconfirmed even when a later Send is rejected; no earlier message text/receipt archive is kept. A rejected/unknown result keeps text editable in the ordinary input with a warning. It does not require review, dismissal, reuse or unlocking before another manual Send. The operator explicitly removed that workflow. There is no recovery UI, copied receipt text or hidden receipt archive.
+Keep at most one latest inline Send failure/uncertainty per conversation, not normal success feedback or a receipt collection. Starting another deliberate Send replaces that feedback; Stop feedback is independent. One per-view Boolean preserves Stop eligibility if an earlier dispatch remains unconfirmed even when a later Send is rejected. A rejected/unknown result keeps text editable in the ordinary input with a warning. It does not require review, dismissal, reuse or unlocking before another manual Send. The operator explicitly removed that workflow. There is no recovery UI, copied receipt text or hidden receipt archive.
+
+Local outgoing copies remain scoped to their original conversation for the lifetime of this page; they are never replayed or stored durably. A nonpending copy can be dismissed without affecting Pi or the draft. Rejected copies say **Not sent**; uncertain copies retain a warning and editable draft. To avoid a visible duplicate, remove a settled, nonrejected local copy only after an exact matching retained user message appears after its captured cutoff on contiguous loaded ancestry. Repeated identical sends consume distinct retained IDs; older messages, assistant text, and missing-page gaps do not qualify. This matching is presentation-only, not evidence that Pi accepted that particular request. A transformed/handled input may never match; dismissal is optional and never gates Send.
 
 Refresh target identity/history/activity after reconnect before enabling Send. Never infer acceptance from matching text or retry automatically. There is no durable-delivery or exactly-once promise across restarts. Pending requests/results stay on their captured original conversation.
 

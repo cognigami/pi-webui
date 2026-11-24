@@ -13,6 +13,8 @@ export function createView(snapshot, label) {
     draft: "",
     open: false,
     pending: null,
+    outgoing: [],
+    matchedOutgoing: new Set(),
     sendFeedback: null,
     unconfirmedSend: false,
     showRecords: false,
@@ -56,6 +58,7 @@ export function ingest(view, payload, reset = false) {
       }
     }
     view.ready = true;
+    reconcileOutgoing(view);
   }
   return true;
 }
@@ -66,6 +69,44 @@ export function prepend(view, page) {
     ...view.entries,
   ];
   view.before = page.before;
+  reconcileOutgoing(view);
+}
+// This only removes a local duplicate when matching retained content appears.
+// It is not a delivery receipt or evidence linking a Pi message to a request.
+export function reconcileOutgoing(view) {
+  if (view.needsLatest) return;
+  view.outgoing = view.outgoing.filter((item) => {
+    if (item.status === "sending" || item.status === "rejected") return true;
+    const cutoff =
+      item.afterId == null
+        ? -1
+        : view.entries.findIndex((entry) => entry.id === item.afterId);
+    if (item.afterId != null && cutoff < 0) return true;
+    const candidates = [];
+    let parentId = item.afterId ?? null;
+    for (const entry of view.entries.slice(cutoff + 1)) {
+      if ((entry.parentId ?? null) !== parentId) break;
+      candidates.push(entry);
+      parentId = entry.id;
+    }
+    const match = candidates.find((entry) => {
+      if (view.matchedOutgoing.has(entry.id)) return false;
+      const message = (view.full.get(entry.id) ?? entry.data)?.message;
+      if (message?.role !== "user") return false;
+      const content = message.content;
+      const text =
+        typeof content === "string"
+          ? content
+          : Array.isArray(content) &&
+              content.every((part) => part.type === "text")
+            ? content.map((part) => part.text).join("")
+            : null;
+      return text === item.text;
+    });
+    if (!match) return true;
+    view.matchedOutgoing.add(match.id);
+    return false;
+  });
 }
 export function expanded(view, type, key) {
   const prefs = view[type];
@@ -151,6 +192,12 @@ export function beginSend(view, id) {
     text: view.draft,
   };
   view.sendFeedback = null;
+  view.outgoing.push({
+    id,
+    text: request.text,
+    afterId: view.snapshot.session.cutoff,
+    status: "sending",
+  });
   view.pending = request;
   view.open = false;
   return request;
@@ -164,6 +211,9 @@ export function finishSend(view, id, result) {
   ].includes(result.status)
     ? result.status
     : "outcome_unknown";
+  const outgoing = view.outgoing.find((item) => item.id === id);
+  if (outgoing) outgoing.status = status;
+  reconcileOutgoing(view);
   view.sendFeedback =
     status === "submitted_unconfirmed"
       ? null

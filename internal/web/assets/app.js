@@ -10,6 +10,7 @@ import {
   mayStop,
   messageError,
   prepend,
+  reconcileOutgoing,
   resultFor,
   toggle,
 } from "./model.js";
@@ -60,21 +61,23 @@ export function renderText(doc, target, text) {
       }
   });
 }
-function disclosure(doc, view, type, key, title, body, changed) {
-  const box = el(doc, "div", undefined, "disclosure"),
-    button = el(doc, "button", title),
-    content = el(doc, "div", undefined, "disclosure-body");
-  const open = expanded(view, type, key);
+function disclosureButton(doc, view, type, key, title, changed) {
+  const button = el(doc, "button", title);
   button.type = "button";
   button.dataset.focusKey = key;
-  button.setAttribute("aria-expanded", String(open));
-  content.hidden = !open;
+  button.setAttribute("aria-expanded", String(expanded(view, type, key)));
   button.addEventListener("click", () => {
     toggle(view, type, key, !expanded(view, type, key));
     changed();
   });
+  return button;
+}
+function disclosure(doc, view, type, key, title, body, changed) {
+  const box = el(doc, "div", undefined, "disclosure"),
+    content = el(doc, "div", undefined, "disclosure-body");
+  content.hidden = !expanded(view, type, key);
   body(content);
-  box.append(button, content);
+  box.append(disclosureButton(doc, view, type, key, title, changed), content);
   return box;
 }
 function blocks(doc, target, content, view, prefix, helpers) {
@@ -164,20 +167,43 @@ function recordLabel(entry, raw) {
     return "Extension · " + (raw?.customType ?? entry.type);
   return "Session record · " + entry.type;
 }
-export function renderRecord(doc, view, entry, helpers) {
-  const article = el(doc, "article");
-  const raw = view.full.get(entry.id) ?? entry.data;
+function recordArticle(doc, id, role, className) {
+  const article = el(doc, "article", undefined, className);
+  article.dataset.record = id;
+  article.dataset.focusKey = "entry:" + id + ":record";
+  article.tabIndex = -1;
+  article.dataset.role = role;
+  return article;
+}
+function responseError(message) {
+  return (
+    message.errorMessage ||
+    (message.stopReason === "aborted"
+      ? "Response aborted"
+      : message.stopReason === "error"
+        ? "Response error"
+        : "")
+  );
+}
+export function renderRecord(
+  doc,
+  view,
+  entry,
+  helpers,
+  raw = view.full.get(entry.id) ?? entry.data,
+) {
   const role = entry.role ?? raw?.message?.role;
   const primary = ["user", "assistant"].includes(role);
-  article.dataset.record = entry.id;
-  article.dataset.focusKey = "entry:" + entry.id + ":record";
-  article.tabIndex = -1;
-  article.dataset.role = role || entry.type;
-  article.className = primary
-    ? "chat-message"
-    : role === "toolResult"
-      ? "tool-record"
-      : "session-record";
+  const article = recordArticle(
+    doc,
+    entry.id,
+    role || entry.type,
+    primary
+      ? "chat-message"
+      : role === "toolResult"
+        ? "tool-record"
+        : "session-record",
+  );
   if (primary)
     article.append(el(doc, "h2", role === "user" ? "You" : "Assistant"));
   if (entry.isError)
@@ -257,22 +283,8 @@ export function renderRecord(doc, view, entry, helpers) {
       article.append(el(doc, "p", "Unsupported message.", "error"));
       return article;
     }
-    if (
-      message.errorMessage ||
-      message.stopReason === "error" ||
-      message.stopReason === "aborted"
-    )
-      article.append(
-        el(
-          doc,
-          "p",
-          message.errorMessage ||
-            (message.stopReason === "aborted"
-              ? "Response aborted"
-              : "Response error"),
-          "error",
-        ),
-      );
+    const error = responseError(message);
+    if (error) article.append(el(doc, "p", error, "error"));
     if (message.role === "toolResult") {
       article.append(
         disclosure(
@@ -303,6 +315,248 @@ export function renderRecord(doc, view, entry, helpers) {
   return article;
 }
 
+function renderTimelineTool(doc, view, item, helpers, outputOnly = false) {
+  const { call, result, live, resultEntry, split } = item;
+  const name = call?.name || result?.toolName || live?.toolName || "unknown";
+  const id = call?.id || result?.toolCallId || live?.toolCallId;
+  const key = id ? "result:" + id : item.key;
+  const open = expanded(view, "tools", key);
+  const pending =
+    !result && (live ? live.type !== "tool_execution_end" : item.current);
+  const error = resultEntry?.isError || result?.isError || live?.isError;
+  const errorText = result && responseError(result);
+  const parent = result?.parentToolCallId ?? live?.parentToolCallId;
+  const record = resultEntry?.id ?? item.key;
+  const article = recordArticle(
+    doc,
+    outputOnly ? record + ":output" : record,
+    outputOnly ? "toolOutput" : "toolResult",
+    "tool-record",
+  );
+  const outputId = split
+    ? "tool-output:" + encodeURIComponent(record.toWellFormed())
+    : "";
+  const appendOutput = (body, label) => {
+    const output = live?.result ?? live?.partialResult;
+    if (!result && output == null) return;
+    body.append(el(doc, "p", label, "meta"));
+    if (result || (typeof output === "object" && "content" in output)) {
+      blocks(
+        doc,
+        body,
+        result ? result.content : output.content,
+        view,
+        item.key,
+        helpers,
+      );
+    } else {
+      body.append(
+        el(
+          doc,
+          "p",
+          "Unsupported tool result format; retained data follows.",
+          "meta",
+        ),
+      );
+      body.append(el(doc, "pre", JSON.stringify(output, null, 2)));
+    }
+  };
+  const label = pending ? "Partial result" : "Result";
+  if (outputOnly) {
+    const body = el(doc, "div", undefined, "disclosure-body");
+    body.hidden = !open;
+    appendOutput(body, label + " · " + name);
+    article.id = outputId;
+    article.append(body);
+  } else {
+    const status = pending
+      ? " · In progress"
+      : call && !result && !live
+        ? " · No retained result"
+        : "";
+    const box = disclosure(
+      doc,
+      view,
+      "tools",
+      key,
+      (parent ? "Nested tool · " : "Tool · ") + name + status,
+      (body) => {
+        if (parent) body.append(el(doc, "p", "Nested under " + parent, "meta"));
+        const args = call?.arguments ?? live?.args;
+        if (args !== undefined) {
+          body.append(el(doc, "p", "Arguments", "meta"));
+          body.append(el(doc, "pre", JSON.stringify(args, null, 2)));
+        }
+        if (!split) appendOutput(body, label);
+      },
+      helpers.changed,
+    );
+    if (split) {
+      box.lastElementChild.id = outputId + ":args";
+      box.firstElementChild.setAttribute(
+        "aria-controls",
+        outputId + ":args " + outputId,
+      );
+    }
+    article.append(box);
+  }
+  if (!split || outputOnly) {
+    if (error) article.append(el(doc, "p", "Tool error", "error"));
+    if (errorText) article.append(el(doc, "p", errorText, "error"));
+  }
+  article.hidden = !(
+    open ||
+    error ||
+    errorText ||
+    (!outputOnly && (expanded(view, "thinking", item.group.key) || pending))
+  );
+  return article;
+}
+
+// Work is a single control for ordered activity fragments. Fragments stay on
+// their own side of any intervening visible prose, whether Work is open or not.
+export function renderTimeline(doc, view, entries, helpers, options = {}) {
+  if (view.showRecords && !options.live)
+    return {
+      nodes: entries.map((entry) => renderRecord(doc, view, entry, helpers)),
+    };
+
+  let group = {
+    ...(options.continuation ?? {
+      key: options.live ? "work:live" : "work:head",
+    }),
+  };
+  let calls = new Map();
+  const items = [];
+  let lastRecord = -1;
+  const recordItem = (fields) => {
+    lastRecord = items.length;
+    items.push({ kind: "record", ...fields });
+  };
+  const toolItem = (fields) =>
+    items.push({ kind: "tool", group, index: items.length, ...fields });
+  const completeTool = (tool, fields) => {
+    Object.assign(tool, fields);
+    // Keep one trigger without pulling output above intervening visible prose.
+    if (tool.index < lastRecord) {
+      tool.split = true;
+      items.push({ kind: "output", group, tool });
+    }
+  };
+  for (const entry of entries) {
+    const raw = view.full.get(entry.id) ?? entry.data;
+    const message = raw?.type === "message" ? raw.message : undefined;
+    const role = entry.role ?? message?.role;
+    if (role === "assistant" && Array.isArray(message?.content)) {
+      const content = message.content;
+      let firstProse = true;
+      let start = 0;
+      const prose = (end) => {
+        if (
+          start === end &&
+          !(firstProse && (entry.isError || responseError(message)))
+        )
+          return;
+        recordItem({
+          entry: firstProse
+            ? entry
+            : { ...entry, id: entry.id + ":prose:" + start, isError: false },
+          raw: {
+            ...raw,
+            message: {
+              ...message,
+              content: content.slice(start, end),
+              ...(firstProse
+                ? {}
+                : { errorMessage: undefined, stopReason: undefined }),
+            },
+          },
+        });
+        firstProse = false;
+      };
+      for (const [i, part] of content.entries()) {
+        if (!["thinking", "toolCall"].includes(part?.type)) continue;
+        prose(i);
+        const key = entry.id + ":work:" + i;
+        if (part.type === "thinking") {
+          items.push({ kind: "thinking", group, key, entry, part });
+        } else {
+          toolItem({ key, entry, call: part, current: !!options.live });
+          if (typeof part.id === "string" && part.id)
+            calls.set(part.id, calls.has(part.id) ? null : items.at(-1));
+        }
+        start = i + 1;
+      }
+      if (!content.length && !entry.isError && !responseError(message)) {
+        recordItem({ entry, raw });
+      } else prose(content.length);
+    } else if (
+      role === "toolResult" &&
+      message?.role === "toolResult" &&
+      message.toolCallId
+    ) {
+      const call = calls.get(message.toolCallId);
+      if (call && !call.result)
+        completeTool(call, { result: message, resultEntry: entry });
+      else toolItem({ key: entry.id, result: message, resultEntry: entry });
+    } else {
+      recordItem({ entry, raw });
+      if (role !== "assistant" && role !== "toolResult") {
+        group = { key: "work:after:" + entry.id };
+        calls = new Map();
+      }
+    }
+  }
+  for (const live of options.tools ?? []) {
+    const call = calls.get(live.toolCallId);
+    if (call && !call.live) {
+      if (live.result != null || live.partialResult != null || live.isError)
+        completeTool(call, { live });
+      else call.live = live;
+    } else toolItem({ key: "live-tool:" + live.toolCallId, live });
+  }
+
+  const nodes = [];
+  for (const item of items) {
+    if (item.kind === "record") {
+      nodes.push(renderRecord(doc, view, item.entry, helpers, item.raw));
+      continue;
+    }
+    const work = item.group;
+    if (!work.hasWork) {
+      const header = recordArticle(doc, work.key, "work", "tool-record");
+      const trigger = el(doc, "div", undefined, "disclosure");
+      trigger.append(
+        disclosureButton(
+          doc,
+          view,
+          "thinking",
+          work.key,
+          "Work · Thinking and tools",
+          helpers.changed,
+        ),
+      );
+      header.append(trigger);
+      nodes.push(header);
+      work.hasWork = true;
+    }
+    const article =
+      item.kind === "tool"
+        ? renderTimelineTool(doc, view, item, helpers)
+        : item.kind === "output"
+          ? renderTimelineTool(doc, view, item.tool, helpers, true)
+          : recordArticle(doc, item.key, "thinking", "tool-record");
+    if (item.kind === "thinking") {
+      renderText(doc, article, item.part.thinking);
+      article.hidden = !expanded(view, "thinking", work.key);
+    }
+    article.dataset.workKey = work.key;
+    if (item.entry) article.dataset.workRecord = item.entry.id;
+    nodes.push(article);
+  }
+  return { nodes, continuation: group };
+}
+
 export async function boot(doc = globalThis.document) {
   const $ = (id) => doc.getElementById(id),
     views = new Map();
@@ -320,7 +574,8 @@ export async function boot(doc = globalThis.document) {
     connection = "",
     lastAnnouncement = "",
     lastSignature = "",
-    lastHistorySignature = "";
+    lastHistorySignature = "",
+    retainedWork;
   let polling = false,
     pollTimer,
     lastVerifiedAt = 0;
@@ -533,7 +788,56 @@ export async function boot(doc = globalThis.document) {
     renderList();
     listAt = 0;
   }
+  let outgoingSignature = "";
+  function renderOutgoing() {
+    const items = active?.outgoing ?? [];
+    const signature = JSON.stringify([active?.key, items]);
+    if (signature === outgoingSignature) return;
+    outgoingSignature = signature;
+    const follow = atBottom();
+    anchored(() => {
+      $("outgoing").replaceChildren(
+        ...items.map((item) => {
+          const article = el(doc, "article", undefined, "chat-message");
+          article.dataset.role = "user";
+          article.dataset.record = "outgoing:" + item.id;
+          article.append(el(doc, "h2", "You"));
+          renderText(doc, article, item.text);
+          const labels = {
+            sending: "Sending…",
+            submitted_unconfirmed: "Submitted · waiting to appear in Pi",
+            outcome_unknown:
+              "Delivery uncertain · check Pi before sending again",
+            rejected: "Not sent · text kept in the editor",
+          };
+          article.append(
+            el(
+              doc,
+              "p",
+              labels[item.status],
+              item.status === "rejected" || item.status === "outcome_unknown"
+                ? "error"
+                : "meta",
+            ),
+          );
+          if (item.status !== "sending") {
+            const dismiss = el(doc, "button", "Dismiss local copy");
+            dismiss.type = "button";
+            dismiss.addEventListener("click", () => {
+              active.outgoing = active.outgoing.filter(
+                (other) => other.id !== item.id,
+              );
+              renderFooter();
+            });
+            article.append(dismiss);
+          }
+          return article;
+        }),
+      );
+    }, follow);
+  }
   function renderFooter() {
+    renderOutgoing();
     $("composer").hidden = !active;
     $("draft").rows = active?.open ? 3 : 1;
     $("composer").dataset.expanded = String(!!active?.open);
@@ -577,7 +881,15 @@ export async function boot(doc = globalThis.document) {
     $("recipient").textContent = safeText(
       active?.label ?? selected?.label ?? "Choose a session",
     );
-    const context = projectContext(selected);
+    const context = [
+      projectContext(selected),
+      safeText(
+        active?.snapshot?.session?.name ??
+          selected?.observation?.snapshot?.session?.name,
+      ).trim(),
+    ]
+      .filter(Boolean)
+      .join(" · ");
     if ($("recipient-context").textContent !== context)
       $("recipient-context").textContent = context;
     $("recipient-context").hidden = !context;
@@ -627,6 +939,7 @@ export async function boot(doc = globalThis.document) {
         : view.needsLatest
           ? "More than one page arrived. The old view is retained; Go to latest to resynchronize."
           : !entries.length &&
+              !view.outgoing.length &&
               !view.snapshot.turnOpen &&
               !view.snapshot.provisional?.message &&
               !view.snapshot.provisional?.tools?.length
@@ -643,12 +956,17 @@ export async function boot(doc = globalThis.document) {
       entries.map((entry) => entry.id),
       view.showRecords,
     ]);
+    const continuesRetained =
+      view.ready &&
+      !view.historyError &&
+      !!s.session.cutoff &&
+      s.session.cutoff === view.entries.at(-1)?.id;
     const signature = JSON.stringify([
       historySignature,
       view.snapshot.provisional,
       view.snapshot.liveUnavailable,
       view.needsLatest,
-      view.showRecords,
+      continuesRetained,
     ]);
     if (!force && signature === lastSignature) return;
     const contentArrived = signature !== lastSignature;
@@ -658,95 +976,59 @@ export async function boot(doc = globalThis.document) {
       changed: () => renderFrame(true, true),
       expand: (entry) => expandEntry(view, entry, true),
     };
+    const focusedPart = doc.activeElement?.closest("[data-work-key]");
+    const focusKey = doc.activeElement?.dataset.focusKey;
     anchored(() => {
       // Persisted entries are immutable. Token-only updates must not destroy
       // their DOM nodes, keyboard focus or the reader's text selection.
       if (force || historySignature !== lastHistorySignature) {
-        $("messages").replaceChildren(
-          ...entries.map((entry) => renderRecord(doc, view, entry, helpers)),
+        const { nodes, continuation } = renderTimeline(
+          doc,
+          view,
+          entries,
+          helpers,
         );
+        $("messages").replaceChildren(...nodes);
+        retainedWork = continuation;
         lastHistorySignature = historySignature;
       }
-      $("provisional").replaceChildren();
+      const live = [];
       if (view.snapshot.liveUnavailable)
-        $("provisional").append(
-          el(doc, "p", view.snapshot.liveUnavailable, "error"),
-        );
+        live.push(el(doc, "p", view.snapshot.liveUnavailable, "error"));
       if (!view.needsLatest) {
         const provisional = view.snapshot.provisional;
-        if (provisional?.message)
-          $("provisional").append(
-            renderRecord(
-              doc,
-              view,
+        const liveEntries = provisional?.message
+          ? [
               {
                 id: "live-assistant",
                 type: "message",
                 role: "assistant",
                 data: { type: "message", message: provisional.message },
               },
-              helpers,
-            ),
-          );
-        for (const tool of provisional?.tools ?? []) {
-          const box = el(doc, "article");
-          box.dataset.record = "live-tool:" + tool.toolCallId;
-          box.dataset.role = "toolResult";
-          box.className = "tool-record";
-          box.append(
-            el(
-              doc,
-              "h2",
-              (tool.parentToolCallId ? "Nested tool" : "Tool") +
-                " · " +
-                tool.toolName,
-            ),
-          );
-          if (tool.isError) box.append(el(doc, "p", "Tool error", "error"));
-          box.append(
-            disclosure(
-              doc,
-              view,
-              "tools",
-              "result:" + tool.toolCallId,
-              tool.type === "tool_execution_end" ? "Result" : "In progress",
-              (body) => {
-                if (tool.parentToolCallId)
-                  body.append(
-                    el(doc, "p", "Parent: " + tool.parentToolCallId, "meta"),
-                  );
-                const result = tool.result ?? tool.partialResult;
-                if (result && typeof result === "object" && "content" in result)
-                  blocks(
-                    doc,
-                    body,
-                    result.content,
-                    view,
-                    "live:" + tool.toolCallId,
-                    helpers,
-                  );
-                else if (result !== undefined && result !== null) {
-                  body.append(
-                    el(
-                      doc,
-                      "p",
-                      "Unsupported tool result format; retained data follows.",
-                      "meta",
-                    ),
-                  );
-                  body.append(el(doc, "pre", JSON.stringify(result, null, 2)));
-                } else
-                  body.append(
-                    el(doc, "pre", JSON.stringify(tool.args ?? {}, null, 2)),
-                  );
-              },
-              helpers.changed,
-            ),
-          );
-          $("provisional").append(box);
-        }
+            ]
+          : [];
+        live.push(
+          ...renderTimeline(doc, view, liveEntries, helpers, {
+            live: true,
+            tools: provisional?.tools,
+            // Share only the display control, never match live tools to retained calls.
+            continuation: continuesRetained ? retainedWork : undefined,
+          }).nodes,
+        );
       }
+      $("provisional").replaceChildren(...live);
     }, follow);
+    if (focusedPart && focusKey) {
+      // A pending tool can finish and disappear into collapsed Work while its
+      // trigger has focus. In that case keep focus on the shared Work control.
+      const visible = [...history.querySelectorAll("[data-focus-key]")].filter(
+        (node) => !node.closest("[hidden]"),
+      );
+      if (!visible.some((node) => node.dataset.focusKey === focusKey))
+        visible
+          .find((node) => node.dataset.focusKey === focusedPart.dataset.workKey)
+          ?.focus({ preventScroll: true });
+    }
     view.rendered = true;
     lastSignature = signature;
     if (!follow && !preserve && (contentArrived || view.needsLatest))
@@ -799,6 +1081,7 @@ export async function boot(doc = globalThis.document) {
       const raw = JSON.parse(text);
       if (raw.id !== entry.id) throw Error("Entry association changed");
       view.full.set(entry.id, raw);
+      reconcileOutgoing(view);
       view.loads.delete(entry.id);
       if (openRequested && raw.message?.role === "toolResult")
         toggle(view, "tools", "result:" + raw.message.toolCallId, true);
@@ -814,10 +1097,16 @@ export async function boot(doc = globalThis.document) {
         doc.activeElement?.dataset.focusKey === "entry:" + entry.id + ":load";
       renderFrame(true, true);
       if (loaderOwnsFocus && view.full.has(entry.id)) {
-        const record = [
+        const records = [
           ...$("messages").querySelectorAll("article[data-record]"),
-        ].find((node) => node.dataset.record === entry.id);
-        const target = record?.querySelector("[data-focus-key]") ?? record;
+        ];
+        const record = records.find((node) => node.dataset.record === entry.id);
+        const workKey = records.find(
+          (node) => node.dataset.workRecord === entry.id,
+        )?.dataset.workKey;
+        const work = records.find((node) => node.dataset.record === workKey);
+        const visible = record && !record.hidden ? record : work;
+        const target = visible?.querySelector("[data-focus-key]") ?? visible;
         target?.focus({ preventScroll: true });
       }
     }
@@ -848,14 +1137,14 @@ export async function boot(doc = globalThis.document) {
     const req = beginSend(view, requestId());
     view.stopReceipt = null;
     $("draft").blur();
-    renderFooter();
+    renderFrame();
     announce("Sending");
     const result = await post(req);
     finishSend(view, req.requestId, result);
     announce(
       view.label + ": " + (view.sendFeedback?.detail || "Request submitted"),
     );
-    if (active === view) renderFooter();
+    if (active === view) renderFrame();
   }
   async function stop() {
     const view = active;

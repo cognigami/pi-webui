@@ -36,9 +36,9 @@ Focused examples: `just test internal/history`, `just test internal/web`,
 Open **http://localhost:8484** (or **http://127.0.0.1:8484**). The light session
 sheet shows **only connected sessions**. There is no unreachable-session list,
 Discovery details, or top-right debug Details panel. The icon-only **☰** button
-opens the chooser (with an accessible Sessions label). Native modal keyboard
-focus/Escape behavior remains; lookup failures stay visible without diagnostic
-panels or stale unreachable choices.
+opens the chooser (with an accessible Sessions label); a light X closes it in
+that same top-left position. Native modal keyboard focus/Escape behavior remains;
+lookup failures stay visible without diagnostic panels or stale unreachable choices.
 
 **The service does not install/reload into existing sessions.** For an operator-
 chosen **new** interactive Pi session, use its supported explicit extension load:
@@ -189,7 +189,8 @@ live Pi conversation.
   extensions need an explicit `/reload` in each chosen idle session to report
   the optional name; new sessions load it normally.
 - Select by existing labels plus brief project/folder context; labels and folders
-  never become control targets. Folder context remains in the header; opaque
+  never become control targets. Directory and optional Pi session name remain
+  in the header below the mux-first label, alongside separate activity; opaque
   workspace/pane IDs are not useful navigation labels and are not displayed.
   Discovery, connection, history, and activity failures stay distinct. An old
   selection never silently redirects to another process after it disappears.
@@ -199,11 +200,13 @@ live Pi conversation.
   remains an error, not an empty conversation.
 - Read the current retained `parentId` ancestry, including stored compaction
   originals. The normal timeline shows conversation messages, not model/thinking
-  configuration, internal custom data or system setup. **View → Show session
-  records** exposes those as quiet collapsed details. Errors and meaningful
-  compaction/branch boundaries remain visible. Load older bounded pages and
-  expand full retained entries. Thinking
-  and tools have independent individual/bulk disclosures. Unknown content and
+  configuration, internal custom data or system setup. The outlined-eye **View
+  options → Show session records** exposes those as quiet collapsed details.
+  Errors and meaningful compaction/branch boundaries remain visible. Load older bounded pages and
+  expand full retained entries. One **Work · Thinking and tools** control per
+  request groups chronological work around prose; tool arguments/results share
+  call-ID-paired disclosures. In-progress tools and errors remain visible when
+  collapsed. Thinking and tools retain independent bulk controls. Unknown content and
   unavailable sources are explicit.
 - Ongoing assistant/tool content is provisional. Confirmed persisted IDs and a
   safe cutoff replace it together; `message_end`, text matching and timers are
@@ -220,10 +223,13 @@ live Pi conversation.
   Escape compacts the editor without deleting the text.
 - Send preserves exact nonempty Unicode text and uses ordinary Pi steering,
   without reading/submitting/clearing the desktop draft. It collapses the
-  composer and dismisses the keyboard. Normal dispatch clears the input quietly;
-  no Submitted/acceptance notice is added to the conversation. This does not
-  claim acceptance or queueing: the underlying API still returns no receipt.
-  While pending, the Send button says Sending….
+  composer and dismisses the keyboard. A local **You** copy appears immediately
+  with **Sending…**, then **Submitted · waiting to appear in Pi** on normal dispatch;
+  the input clears. A matching new retained user message replaces the local copy
+  for display only, never as proof of acceptance. No delivered/read state is invented:
+  Pi's API still returns no receipt. Unmatched nonpending copies can be dismissed
+  without affecting Pi or the draft. Copies are page-local and never replayed.
+  See [submission feedback](docs/design.md#53-submission-feedback) for matching limits.
 - Lost/failed Send leaves the text directly editable with an inline warning;
   another Send is an ordinary deliberate action, not a recovery workflow.
   There is no automatic control retry or replay. Send uncertainty
