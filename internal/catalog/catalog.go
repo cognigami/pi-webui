@@ -1,4 +1,4 @@
-// Package catalog retrieves labels only. It never transports terminal input/output.
+// Package catalog discovers multiplexers and manages their tab labels. It never transports terminal input/output.
 package catalog
 
 import (
@@ -26,7 +26,7 @@ func Command(ctx context.Context, name string, args ...string) ([]byte, error) {
 	var out limitedBuffer
 	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("%s discovery failed: %w", name, err)
+		return nil, fmt.Errorf("%s command failed: %w", name, err)
 	}
 	return out.data, nil
 }
@@ -45,6 +45,7 @@ type Pane struct {
 	Backend    string `json:"backend"`
 	Scope      string `json:"scope"`
 	ID         string `json:"id"`
+	TabID      string `json:"tabId"`
 	Label      string `json:"label"`
 	Context    string `json:"context"`
 	Cwd        string `json:"cwd"`
@@ -128,11 +129,11 @@ func Herdr(ctx context.Context, run Run, scope string) ([]Pane, error) {
 		if a.Agent != "pi" {
 			continue
 		}
-		label := a.Name
+		label := labels[a.Tab]
 		if label == "" {
-			label = labels[a.Tab]
+			label = a.Name
 		}
-		panes = append(panes, Pane{"herdr", scope, a.Pane, label, a.Workspace + " · " + a.Pane, a.Cwd, true})
+		panes = append(panes, Pane{Backend: "herdr", Scope: scope, ID: a.Pane, TabID: a.Tab, Label: label, Context: a.Workspace + " · " + a.Pane, Cwd: a.Cwd, Identified: true})
 	}
 	return panes, errors.Join(failures...)
 }
@@ -152,11 +153,11 @@ func TMUX(ctx context.Context, run Run) ([]Pane, error) {
 		return nil, errors.New("tmux discovery exceeds 256-pane bound")
 	}
 	for _, id := range ids {
-		if !strings.HasPrefix(id, "%") || len(id) < 2 || strings.Trim(id[1:], "0123456789") != "" {
+		if !tmuxID(id, '%') {
 			return nil, errors.New("unsupported tmux pane ID")
 		}
 		values := []string{}
-		for _, format := range []string{"#{socket_path}", "#{window_name}", "#{pane_title}", "#{session_name}", "#{pane_current_path}", "#{pane_current_command}"} {
+		for _, format := range []string{"#{socket_path}", "#{window_name}", "#{pane_title}", "#{session_name}", "#{pane_current_path}", "#{pane_current_command}", "#{window_id}"} {
 			value, err := run(ctx, "tmux", "display-message", "-p", "-t", id, format)
 			if err != nil {
 				return panes, err
@@ -167,7 +168,10 @@ func TMUX(ctx context.Context, run Run) ([]Pane, error) {
 		if label == "" {
 			label = values[2]
 		}
-		pane := Pane{"tmux", values[0], id, label, values[3] + " · " + id, values[4], values[5] == "pi"}
+		if !tmuxID(values[6], '@') {
+			return panes, errors.New("unsupported tmux window ID")
+		}
+		pane := Pane{Backend: "tmux", Scope: values[0], ID: id, TabID: values[6], Label: label, Context: values[3] + " · " + id, Cwd: values[4], Identified: values[5] == "pi"}
 		// tmux can report Node's executable name even when Pi's process command
 		// is pi. Inspect only this pane's foreground processes, never its text.
 		if values[5] == "node" || values[5] == "nodejs" {
@@ -183,6 +187,10 @@ func TMUX(ctx context.Context, run Run) ([]Pane, error) {
 	}
 	return panes, nil
 }
+func tmuxID(id string, prefix byte) bool {
+	return len(id) > 1 && id[0] == prefix && strings.Trim(id[1:], "0123456789") == ""
+}
+
 func nodePi(ctx context.Context, run Run, paneID string) (bool, error) {
 	tty, err := run(ctx, "tmux", "display-message", "-p", "-t", paneID, "#{pane_tty}")
 	if err != nil {

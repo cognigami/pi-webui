@@ -19,7 +19,7 @@ func fakeRun(_ context.Context, name string, args ...string) ([]byte, error) {
 		return []byte("%1\n%2\n"), nil
 	}
 	if name == "tmux" && len(args) == 5 {
-		values := map[string]string{"#{socket_path}": "/tmux.sock", "#{window_name}": "a\tb\nc", "#{pane_title}": "title", "#{session_name}": "group", "#{pane_current_path}": "/a", "#{pane_current_command}": "pi"}
+		values := map[string]string{"#{socket_path}": "/tmux.sock", "#{window_name}": "a\tb\nc", "#{window_id}": "@3", "#{pane_title}": "title", "#{session_name}": "group", "#{pane_current_path}": "/a", "#{pane_current_command}": "pi"}
 		return []byte(values[args[4]] + "\n"), nil
 	}
 	return nil, errors.New("unexpected fixture command")
@@ -29,14 +29,14 @@ func TestLabelsDuplicatesAndExactTMUXFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(panes) != 2 || panes[0].Label != "same" || panes[0].ID == panes[1].ID {
+	if len(panes) != 2 || panes[0].Label != "same" || panes[0].ID == panes[1].ID || panes[0].TabID != "w1:t1" || panes[1].TabID != "w1:t2" {
 		t.Fatal(panes)
 	}
 	tmux, err := TMUX(context.Background(), fakeRun)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tmux) != 2 || tmux[0].Label != "a\tb\nc" {
+	if len(tmux) != 2 || tmux[0].Label != "a\tb\nc" || tmux[0].TabID != "@3" || tmux[1].TabID != "@3" {
 		t.Fatal(tmux)
 	}
 }

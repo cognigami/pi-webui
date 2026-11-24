@@ -188,6 +188,13 @@ live Pi conversation.
   a Pi name does not establish ownership or enable controls. Older loaded
   extensions need an explicit `/reload` in each chosen idle session to report
   the optional name; new sessions load it normally.
+- Long-press a selector entry or header to rename its actual **Herdr tab / tmux
+  window** directly. F2 on an entry and **View options → Rename tab** are alternatives.
+  Save updates the terminal-owned label and list sorting; Cancel changes nothing.
+  Other panes in the same tab share the name. Pi names and containing workspaces/
+  tmux sessions stay untouched. Herdr now prefers the tab label over its separate
+  agent name. No browser alias or automatic rename retry is added. See
+  [tab rename](docs/design.md#34-explicit-terminal-tab-rename) for targeting and limits.
 - Select by existing labels plus brief project/folder context; labels and folders
   never become control targets. Directory and optional Pi session name remain
   in the header below the mux-first label, alongside separate activity; opaque

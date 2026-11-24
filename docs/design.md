@@ -90,9 +90,9 @@ Each row shows:
 - A coordinator badge only when supported by a verified source, not inferred from activity, recency, or the first pane found.
 - An activity label and its freshness; unknown is a valid state.
 
-**Naming responsibility:** Existing herdr window names already help the user recognize the intended agent. Use those names, and the equivalent existing labels in tmux. Do not require agents to name Pi conversations too. Read an already-set name through the public session-manager API and report it as optional display metadata, without generating or changing it. Do not judge nonempty names such as `node`, `1`, or a literal `Unnamed session`. If naming ever needs improvement, that belongs in agent instructions rather than a new RAI naming system; no instruction change is a prerequisite here.
+**Naming responsibility:** Existing Herdr tab labels and tmux window names help the user recognize the intended agent. Use the tab label first in Herdr, falling back to the agent name only when no tab label is available, so a tab rename is reflected consistently. Use the equivalent existing window labels in tmux. Do not require agents to name Pi conversations too. Read an already-set name through the public session-manager API and report it as optional display metadata, without generating or changing it. Do not judge nonempty names such as `node`, `1`, or a literal `Unnamed session`. There is no RAI alias store or automatic naming system. An explicit user action may rename the actual terminal tab as described below.
 
-RAI displays those labels consistently in the session list and conversation header. It does not infer assignments, generate names, parse roles from naming conventions, or maintain a second alias/renaming system. A Pi fallback name does not establish ownership, resolve ambiguous context, change endpoint/association identity or enable controls. Unnamed or duplicate labels get available project/folder context and remain selectable; do not surface opaque workspace/pane IDs as navigation labels; the naming convention is not an admission requirement. If names are technically retrievable but still hard to recognize, improve the agent instructions rather than add naming machinery to RAI.
+RAI displays those labels consistently in the session list and conversation header. It does not infer assignments, generate names, parse roles from naming conventions, or maintain a second alias system. A Pi fallback name does not establish ownership, resolve ambiguous context, change endpoint/association identity or enable controls. Unnamed or duplicate labels get available project/folder context and remain selectable; do not surface opaque workspace/pane IDs as navigation labels; the naming convention is not an admission requirement. For an occasional missed or unclear name, the user can rename the existing terminal tab directly (§3.4), without creating a separate RAI label.
 
 Use a stable ordering by display label and keep it steady across activity updates. No special coordinator selection step, unread badges, or message counters. If a label changes, update the displayed name without changing the selected target or moving a draft to another session.
 
@@ -105,6 +105,35 @@ The human-readable labels should make the coordinator and other agents recogniza
 The browser chooser shows only currently connected RAI endpoints, not unreachable/unintegrated Pi candidates. Loading, no connected sessions, and lookup failure remain distinct. On lookup failure, show the error rather than stale unreachable choices. The backend can retain diagnostic discovery coverage internally/API-side; there is no Discovery details panel or unconnected-session section in the browser.
 
 A selected conversation that loses its connection keeps its cached content and an unavailable indication until safely reassociated or explicitly changed, but is not offered as a reachable choice. Never silently redirect the conversation/composer. Extension loading remains explicit; no terminal-input fallback.
+
+### 3.4 Explicit terminal-tab rename
+
+Long-press a connected selector entry or the conversation header to open the
+name editor directly, with no intermediate menu. A normal selector tap still
+selects; movement/scrolling, pointer cancellation and early release cancel the
+hold. F2 on a selector entry and **View options → Rename tab** provide keyboard
+and ordinary button alternatives. The native modal offers a name field, Save,
+and Cancel; Cancel makes no change. Save preserves the entered name rather than
+trimming it. Names must be nonblank, valid UTF-8, at most 256 UTF-8 bytes and free
+of control characters.
+
+Rename changes only the actual **Herdr tab / tmux window** containing the Pi
+session. Other panes in that same tab see the same name; containing Herdr
+workspaces/tmux sessions, individual panes and Pi session names are untouched.
+There is no browser-only alias. Discovery refresh supplies the displayed name
+and sort order after Save. tmux's normal explicit-window-rename behavior disables
+that window's automatic renaming; RAI adds no extra name-maintenance machinery.
+
+`POST /rename` uses the existing same-origin/CSRF boundary. The browser captures
+endpoint, association and tab identity when the editor opens. The server resolves
+the connected session and its unique current mux ownership afresh, derives the
+backend/socket itself and refuses stale association/tab identity or ambiguous
+ownership before issuing an explicit-ID rename. Browser-provided labels are
+literal arguments, never shell commands. Non-mux sessions cannot rename a tab.
+A failed or lost response remains visible in the editor; there is no automatic
+retry or invented successful label. A lost response can mean the tab was already
+renamed. Browser/control fixtures cover these contracts; native touchscreen
+behavior and real terminal rename acceptance are separate live checks.
 
 ## 4. Conversation
 
@@ -256,7 +285,7 @@ The extension provides:
 
 Start connection work from `session_start`, not the extension factory. Clean up idempotently on `session_shutdown`. If RAI is absent, Pi must still start and work normally; reconnect observation when the service returns. Extension reload/replacement requires fresh endpoint association.
 
-Herdr/tmux integration is limited to existing labels, pane/ownership context, and discovery of nonparticipating sessions. Use supported installed interfaces; do not infer identity from directory or recency. Do not capture/scrape terminal output, inject keys, take over an output pipe, or alter the user's pane. Basic label/rename mapping passed the first disposable smoke phase under both backends. Nested ownership still needs end-to-end validation.
+Herdr/tmux integration covers existing labels, pane/ownership context, discovery of nonparticipating sessions and the explicit tab-only rename action (§3.4). Use supported installed interfaces; do not infer identity from directory or recency. Do not capture/scrape terminal output, inject keys, take over an output pipe, or alter the user's pane. Basic label/rename mapping passed the first disposable smoke phase under both backends. Nested ownership still needs end-to-end validation.
 
 ### 7.2 Identity and target changes
 

@@ -18,6 +18,7 @@
 <button data-bulk="tools:true">Expand all tools</button><button data-bulk="tools:false">Collapse all tools</button>
 <button data-bulk="thinking:true">Expand all thinking</button><button data-bulk="thinking:false">Collapse all thinking</button>
 <button id="records-button" aria-pressed="false">Show session records</button>
+<button id="rename-button" disabled>Rename tab</button>
 </nav>
 <div id="connection" role="status" hidden></div>
 <div id="conversation-notice" role="status" hidden></div>
@@ -44,6 +45,15 @@
 <div class="dialog-heading"><button id="sessions-close" class="icon-button" aria-label="Close sessions" title="Close sessions" autofocus><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button><h2 id="sessions-title">Sessions</h2></div>
 <p id="session-summary" role="status">Looking for connected sessions…</p>
 <div id="session-list"></div>
+</dialog>
+<dialog id="rename" aria-labelledby="rename-title">
+<form id="rename-form">
+<h2 id="rename-title">Rename tab</h2>
+<label for="rename-name">Tab name</label>
+<input id="rename-name" name="name" type="text" required maxlength="256" autocomplete="off" autofocus>
+<p id="rename-error" class="error" role="status"></p>
+<div class="footer-actions"><button id="rename-cancel" type="button">Cancel</button><button id="rename-save" type="submit">Save</button></div>
+</form>
 </dialog>
 <div id="announcements" class="sr-only" aria-live="polite"></div>
 </main>

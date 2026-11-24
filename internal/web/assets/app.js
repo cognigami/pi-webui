@@ -557,6 +557,49 @@ export function renderTimeline(doc, view, entries, helpers, options = {}) {
   return { nodes, continuation: group };
 }
 
+// Leave normal taps/scrolling alone; a completed hold consumes its click.
+export function onLongPress(target, action) {
+  let timer,
+    start,
+    held = false;
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = undefined;
+  };
+  target.addEventListener("pointerdown", (event) => {
+    cancel();
+    held = false;
+    if (event.button !== 0 || event.isPrimary === false) return;
+    start = { x: event.clientX, y: event.clientY };
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (!target.isConnected) return;
+      held = true;
+      action();
+    }, 550);
+  });
+  target.addEventListener("pointermove", (event) => {
+    if (
+      start &&
+      Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10
+    )
+      cancel();
+  });
+  for (const type of ["pointerup", "pointercancel", "pointerleave"])
+    target.addEventListener(type, cancel);
+  target.addEventListener("contextmenu", (event) => event.preventDefault());
+  target.addEventListener(
+    "click",
+    (event) => {
+      if (!held || !(event.detail > 0)) return;
+      held = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    },
+    true,
+  );
+}
+
 export async function boot(doc = globalThis.document) {
   const $ = (id) => doc.getElementById(id),
     views = new Map();
@@ -696,6 +739,71 @@ export async function boot(doc = globalThis.document) {
     if (!$("sessions").open) $("sessions").showModal();
     $("sessions-button").setAttribute("aria-expanded", "true");
   }
+  const mayRename = (row) =>
+    !!(
+      row?.observation?.connected &&
+      row.ownership === "single-context" &&
+      row.panes?.length === 1 &&
+      row.panes[0].tabId
+    );
+  let renameTarget = null,
+    renamePending = false,
+    renameReturn = null;
+  function openRename(row, origin) {
+    if (!online || !csrf || !mayRename(row) || $("rename").open) return;
+    renameTarget = {
+      endpointId: row.endpointId,
+      associationId: row.observation.snapshot.associationId,
+      tabId: row.panes[0].tabId,
+    };
+    renameReturn = origin;
+    $("rename-name").value = row.label;
+    $("rename-error").textContent = "";
+    $("rename").showModal();
+    $("rename-name").focus();
+    $("rename-name").select?.();
+  }
+  async function saveRename(event) {
+    event.preventDefault();
+    if (!renameTarget || renamePending) return;
+    const name = $("rename-name").value;
+    if (!name.trim()) {
+      $("rename-error").textContent = "Enter a tab name.";
+      return;
+    }
+    if (new TextEncoder().encode(name).length > 256) {
+      $("rename-error").textContent = "Tab name exceeds 256 UTF-8 bytes.";
+      return;
+    }
+    $("rename-error").textContent = "";
+    renamePending = true;
+    $("rename-save").disabled = true;
+    $("rename-cancel").disabled = true;
+    $("rename-name").readOnly = true;
+    $("rename-save").textContent = "Saving…";
+    try {
+      await request("/rename", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-RAI-CSRF": csrf },
+        body: JSON.stringify({ ...renameTarget, name }),
+      });
+      // Names remain multiplexer-owned: refresh discovery, don't invent an alias.
+      listAt = 0;
+      $("rename").close();
+      announce("Tab renamed");
+    } catch (error) {
+      $("rename-error").textContent = error.status
+        ? error.message
+        : "Rename outcome unknown. Check the terminal before trying again.";
+    } finally {
+      renamePending = false;
+      $("rename-save").disabled = false;
+      $("rename-cancel").disabled = false;
+      $("rename-name").readOnly = false;
+      $("rename-save").textContent = "Save";
+    }
+  }
+  let sessionListSignature = "";
   function renderList() {
     const list = $("session-list");
     const focusedSession = doc.activeElement?.dataset?.sessionKey;
@@ -714,6 +822,24 @@ export async function boot(doc = globalThis.document) {
         : "No connected sessions.");
     if ($("session-summary").textContent !== summary)
       $("session-summary").textContent = summary;
+    const signature = JSON.stringify([
+      discoveryError,
+      selected?.endpointId,
+      connected.map((row) => [
+        row.endpointId,
+        row.label,
+        projectContext(row),
+        row.ownership,
+        row.observation.snapshot.associationId,
+        row.observation.snapshot.session.id,
+        row.observation.snapshot.session.name,
+        row.observation.snapshot.state.activity,
+        row.panes,
+      ]),
+    ]);
+    // Unchanged discovery must not detach a button during a hold.
+    if (signature === sessionListSignature) return;
+    sessionListSignature = signature;
     list.replaceChildren();
     for (const row of connected) {
       const button = el(doc, "button", undefined, "session session-connected");
@@ -736,6 +862,17 @@ export async function boot(doc = globalThis.document) {
               : " · Read-only; controls unavailable"),
         ),
       );
+      if (mayRename(row)) {
+        button.title = "Hold to rename tab; F2 to rename with keyboard";
+        button.classList.add("rename-target");
+        onLongPress(button, () => openRename(row, button));
+        button.addEventListener("keydown", (event) => {
+          if (event.key === "F2") {
+            event.preventDefault();
+            openRename(row, button);
+          }
+        });
+      }
       button.addEventListener("click", () => {
         choose(row);
         $("sessions").close();
@@ -881,6 +1018,10 @@ export async function boot(doc = globalThis.document) {
     $("recipient").textContent = safeText(
       active?.label ?? selected?.label ?? "Choose a session",
     );
+    const canRename = online && !!csrf && mayRename(selected) && !unavailable;
+    $("rename-button").disabled = !canRename;
+    $("recipient").classList.toggle("rename-target", canRename);
+    $("recipient").title = canRename ? "Hold to rename tab" : "";
     const context = [
       projectContext(selected),
       safeText(
@@ -1275,6 +1416,25 @@ export async function boot(doc = globalThis.document) {
   $("sessions-close").addEventListener("click", () => {
     $("sessions").close();
     $("sessions-button").setAttribute("aria-expanded", "false");
+  });
+  onLongPress($("recipient"), () => openRename(selected, $("view-button")));
+  $("rename-button").addEventListener("click", () =>
+    openRename(selected, $("rename-button")),
+  );
+  $("rename-form").addEventListener("submit", saveRename);
+  $("rename-cancel").addEventListener("click", () => $("rename").close());
+  $("rename").addEventListener("cancel", (event) => {
+    if (renamePending) event.preventDefault();
+  });
+  $("rename").addEventListener("close", () => {
+    renameTarget = null;
+    const replacement = [...$("session-list").children].find(
+      (node) => node.dataset.sessionKey === renameReturn?.dataset.sessionKey,
+    );
+    const origin = renameReturn?.isConnected ? renameReturn : replacement;
+    (
+      origin ?? ($("sessions").open ? $("sessions-close") : $("view-button"))
+    ).focus({ preventScroll: true });
   });
   $("records-button").addEventListener("click", () => {
     if (!active) return;

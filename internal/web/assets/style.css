@@ -607,3 +607,29 @@ header > .icon-button {
   color: var(--muted);
 }
 /* End optional message hierarchy. */
+
+.rename-target {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+#rename {
+  top: 1rem;
+  bottom: auto;
+  margin: 0 auto;
+  max-height: calc(var(--viewport-height, 100dvh) - 2rem);
+}
+#rename-name {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0.5rem 0 1rem;
+  padding: 0.5rem;
+  border: 1px solid var(--control-border);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+#rename .footer-actions {
+  justify-content: flex-end;
+}

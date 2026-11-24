@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"rai/internal/bridge"
@@ -183,7 +184,121 @@ func App(server sessions, run catalog.Run) (http.Handler, error) {
 		// No adapter retries, outbox, or dependency on another request's completion.
 		reply(w, server.Dispatch(r.Context(), req))
 	})
+	mux.HandleFunc("POST /rename", func(w http.ResponseWriter, r *http.Request) {
+		renameTab(w, r, server, run)
+	})
 	return boundary(token, mux), nil
+}
+
+func renameTab(w http.ResponseWriter, r *http.Request, server sessions, run catalog.Run) {
+	if r.Header.Get("Content-Type") != "application/json" {
+		http.Error(w, "JSON required", 415)
+		return
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 4096))
+	if err != nil {
+		http.Error(w, "Rename body exceeds limit", 413)
+		return
+	}
+	var req struct {
+		bridge.Target
+		TabID string          `json:"tabId"`
+		Name  json.RawMessage `json:"name"`
+	}
+	decoder := json.NewDecoder(strings.NewReader(string(body)))
+	decoder.DisallowUnknownFields()
+	if !utf8.Valid(body) || decoder.Decode(&req) != nil || decoder.Decode(new(any)) != io.EOF || req.EndpointID == "" || req.AssociationID == "" || req.TabID == "" {
+		http.Error(w, "Invalid rename request", 400)
+		return
+	}
+	var name string
+	if json.Unmarshal(req.Name, &name) != nil || strings.TrimSpace(name) == "" || len(name) > 256 || strings.ContainsFunc(name, unicode.IsControl) ||
+		strings.ContainsRune(name, utf8.RuneError) && !pairedJSONSurrogates(req.Name) {
+		http.Error(w, "Use a nonblank tab name of up to 256 UTF-8 bytes without control characters.", 400)
+		return
+	}
+	changed := func() { http.Error(w, "Cannot verify the current terminal tab; refresh and select it again.", 409) }
+	o, ok := server.Get(req.EndpointID)
+	if !ok || o.Snapshot.Target != req.Target || !renameConnected(o) || run == nil {
+		changed()
+		return
+	}
+	listing := catalog.Discover(r.Context(), server.List(), run)
+	var row *catalog.Row
+	for i := range listing.Rows {
+		candidate := &listing.Rows[i]
+		if candidate.EndpointID != req.EndpointID {
+			continue
+		}
+		if row != nil {
+			changed()
+			return
+		}
+		row = candidate
+	}
+	if row == nil || row.Observation == nil || row.Observation.Snapshot.Target != req.Target || !renameConnected(*row.Observation) ||
+		row.Integration != "connected" || row.Ownership != "single-context" || len(row.Panes) != 1 {
+		changed()
+		return
+	}
+	pane := row.Panes[0]
+	host := row.Observation.Snapshot.Host
+	if pane.TabID != req.TabID || pane.Scope == "" ||
+		host.HerdrPane != "" && listing.Failures["herdr"] != "" ||
+		host.TMUXPane != "" && listing.Failures["tmux"] != "" {
+		changed()
+		return
+	}
+	// Sharing a tab with a different pane is fine; competing observations
+	// claiming this exact pane make its ownership ambiguous.
+	for _, other := range listing.Rows {
+		if other.EndpointID == req.EndpointID || other.Observation == nil || !renameConnected(*other.Observation) {
+			continue
+		}
+		for _, p := range other.Panes {
+			if p.Backend == pane.Backend && p.Scope == pane.Scope && p.ID == pane.ID {
+				changed()
+				return
+			}
+		}
+	}
+	// A bridge observation can change while the mux commands are running.
+	now, ok := server.Get(req.EndpointID)
+	if !ok || !renameConnected(now) || now.Snapshot.Target != req.Target || now.Snapshot.Host != host || now.Snapshot.Session.ID != row.Observation.Snapshot.Session.ID {
+		changed()
+		return
+	}
+	if err := catalog.RenameTab(r.Context(), run, pane, name); err != nil {
+		http.Error(w, "Terminal tab rename was not confirmed; refresh before trying again.", 502)
+		return
+	}
+	reply(w, map[string]string{"status": "renamed"})
+}
+
+// Go's JSON decoder silently substitutes U+FFFD for unpaired surrogates.
+// Check the already decoded JSON string's escapes so a literal U+FFFD is
+// accepted but a malformed escape cannot silently change the requested name.
+func pairedJSONSurrogates(raw json.RawMessage) bool {
+	wantLow := false
+	for i := 1; i < len(raw)-1; i++ {
+		var code uint64
+		if raw[i] == '\\' {
+			i++
+			if raw[i] == 'u' {
+				code, _ = strconv.ParseUint(string(raw[i+1:i+5]), 16, 16)
+				i += 4
+			}
+		}
+		if low := code >= 0xdc00 && code <= 0xdfff; low != wantLow {
+			return false
+		}
+		wantLow = code >= 0xd800 && code <= 0xdbff
+	}
+	return !wantLow
+}
+
+func renameConnected(o bridge.Observation) bool {
+	return o.Connected && time.Since(o.ReceivedAt) < 10*time.Second
 }
 
 func reply(w http.ResponseWriter, value any) {
